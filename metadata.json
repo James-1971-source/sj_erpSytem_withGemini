@@ -1,0 +1,5 @@
+{
+  "name": "S&J 희망나눔 ERP",
+  "description": "A web-based ERP (Enterprise Resource Planning) system for 'S&J 희망나눔', a youth education institution. This application helps manage approvals, internal mail, bulletin boards, employees, documents, and schedules.",
+  "requestFramePermissions": []
+}
