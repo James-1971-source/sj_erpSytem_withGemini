@@ -1,328 +1,955 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
-  Mail, FileText, Users, CreditCard, Bell, Settings, LogOut, Search, Plus, Calendar, 
-  Home, Eye, Building2, GraduationCap, RefreshCw, Database, Star, XCircle, Trash2
+    LayoutDashboard, Mail, FileCheck, MessageSquare, Files, Users, FileText, Calendar, Database, LogOut, 
+    Bell, User, ChevronDown, Search, Home, Briefcase, Power, MoreHorizontal, ChevronLeft, Trash2, Archive, 
+    Send, FileWarning, Inbox, Star, Paperclip, CornerUpLeft, CornerUpRight, Trash, EllipsisVertical, ChevronsLeft,
+    ChevronsRight, ChevronRight, CheckSquare, Settings, Video, X, Clock, Folder, File as FileIcon, FileType, PlusCircle, Edit, UploadCloud
 } from 'lucide-react';
 
-// --- TYPE DEFINITIONS ---
-type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+// --- TYPES ---
+type UserProfile = { id: number; name: string; team: string; position: string; email: string; phone: string; avatar: string; };
+type NavItem = { id: string; label: string; icon: React.ElementType; count?: number; };
+type Email = { id: number; from: string; to?: string; subject: string; body?: string; date: string; unread: boolean; important: boolean; hasAttachment: boolean; size: string; mailbox: 'inbox' | 'sent' | 'spam' | 'trash' | 'archive' | 'draft'; };
+type Approval = { id: number; title: string; requester: string; date: string; status: 'pending' | 'approved' | 'rejected'; content?: string; };
+type Post = { id: number; title: string; author: string; date: string; views: number; content: string; };
+type ChatMessage = { id: number; user: Pick<UserProfile, 'name' | 'team' | 'avatar'>; text: string; timestamp: string; isCurrentUser: boolean; };
+type ScheduleEventType = '업무' | '부서' | '회사';
+type ScheduleEvent = { id: number; title: string; start: Date; end: Date; type: ScheduleEventType; owner: string; color: string; };
+type Document = { id: number; name: string; type: 'folder' | 'pdf' | 'docx' | 'txt'; owner: string; modifiedDate: string; size: string | null; parentId: number | null; };
 
-interface User {
-  id: number;
-  name: string;
-  position: string;
-  department: string;
-}
+// --- MOCK DATA ---
+const userProfile: UserProfile = { id: 1, name: '김민수', team: '교육팀', position: '교육팀장', email: 'mskim@sj-hs.or.kr', phone: '010-1234-5678', avatar: '김' };
 
-interface Approval {
-  id: number;
-  title: string;
-  requester: string;
-  date: string;
-  status: ApprovalStatus;
-  amount: string;
-  content: string;
-}
-
-interface Employee {
-  id: number;
-  name: string;
-  position: string;
-  department: string;
-  status: string;
-  email: string;
-}
-
-interface Document {
-  id: number;
-  title: string;
-  date: string;
-  author: string;
-  size: string;
-}
-
-interface Post {
-  id: number;
-  title: string;
-  content: string;
-  author: string;
-  date: string;
-  views: number;
-  category: string;
-}
-
-interface Message {
-  id: number;
-  subject: string;
-  content: string;
-  senderName: string;
-  date: string;
-  read: boolean;
-  important: boolean;
-}
-
-interface Event {
-  id: number;
-  title: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  location: string;
-}
-
-interface NewPost {
-  title: string;
-  content: string;
-  category: string;
-}
-
-// --- CONSTANTS ---
-const SEED_DATA = {
-  employees: [
-    { id: 1, name: '이영희', position: '대표이사', department: '경영진', status: '재직', email: 'yhlee@sjhope.org' },
-    { id: 2, name: '박철수', position: '교육부장', department: '교육팀', status: '재직', email: 'cspark@sjhope.org' },
-    { id: 3, name: '김민정', position: '상담사', department: '상담팀', status: '재직', email: 'mjkim@sjhope.org' },
-    { id: 4, name: '정수현', position: '행정담당', department: '총무팀', status: '재직', email: 'shjeong@sjhope.org' },
-    { id: 5, name: '김민수', position: '교육팀장', department: '청소년교육팀', status: '재직', email: 'mskim@sjhope.org' }
-  ],
-  approvals: [
-    { id: 4, title: '워크샵 참가비 신청', requester: '김민수', date: '2025-08-31', status: 'rejected', amount: '80만원', content: '기관 전체 워크샵 참가를 위한 참가비 지원 신청입니다. 반려 사유: 예산 초과.' },
-    { id: 3, title: '연차 신청서', requester: '정수현', date: '2025-09-01', status: 'pending', amount: '-', content: '개인 사유로 2025년 9월 10일 연차 사용을 신청합니다.' },
-    { id: 2, title: '교육 자료 구입 요청', requester: '김민정', date: '2025-09-02', status: 'approved', amount: '150만원', content: '신규 상담 프로그램 도입에 따른 전문 서적 및 교구 구입 요청 건입니다. 목록은 별도 첨부했습니다.' },
-    { id: 1, title: '청소년 캠프 예산 신청', requester: '박철수', date: '2025-09-03', status: 'pending', amount: '500만원', content: '2025년 하반기 청소년 리더십 캠프 진행을 위한 예산 신청입니다. 세부 내역은 첨부파일을 참고해주시기 바랍니다.' }
-  ],
-  documents: [
-    { id: 1, title: '2025 청소년 교육계획서.pdf', date: '2025-09-03', author: '박철수', size: '2.1MB' },
-    { id: 2, title: '상담 매뉴얼.docx', date: '2025-09-02', author: '김민정', size: '1.8MB' },
-    { id: 3, title: '기관 운영규정.pdf', date: '2025-09-01', author: '이영희', size: '3.2MB' }
-  ],
-  posts: [
-    { id: 1, title: '9월 청소년 교육 프로그램 안내', author: '박철수', date: '2025-09-03', views: 45, category: 'notice', content: '안녕하세요, 교육팀 박철수입니다.\n\n9월에 진행될 청소년 교육 프로그램을 아래와 같이 안내드립니다.\n\n- 프로그램명: 코딩 꿈나무 교실\n- 대상: 초등학생 4-6학년\n- 기간: 2025년 9월 15일 ~ 10월 20일 (매주 월요일)\n\n자세한 내용은 첨부된 파일을 참고해주시기 바랍니다.\n많은 관심과 참여 부탁드립니다.' },
-    { id: 2, title: '기관 워크샵 개최 안내', author: '이영희', date: '2025-09-02', views: 67, category: 'notice', content: '전 직원 워크샵이 9월 마지막 주에 개최될 예정입니다.\n\n- 일시: 2025년 9월 26일(금) ~ 9월 27일(토)\n- 장소: 강원도 평창 알펜시아 리조트\n\n일정 및 장소에 대한 세부 사항은 추후 다시 공지하겠습니다.' },
-    { id: 3, title: '상담실 이용 수칙 업데이트', author: '김민정', date: '2025-09-01', views: 23, category: 'general', content: '상담실 내부 공사 및 환경 개선으로 인해 이용 수칙이 일부 변경되었습니다.\n\n주요 변경 사항:\n1. 이용 시간 변경 (오전 9시 ~ 오후 6시)\n2. 음식물 반입 전면 금지\n\n모든 직원분들께서는 변경된 내용을 숙지해주시기 바랍니다.' }
-  ],
-  messages: [
-    { id: 1, subject: '9월 이사회 회의 준비 관련', content: '다음 주 화요일 이사회 회의 준비사항에 대해 논의하고 싶습니다. 관련 자료 검토 후 회신 부탁드립니다.', senderName: '이영희', date: '2025-09-03T14:30:00', read: false, important: true },
-    { id: 2, subject: '청소년 캠프 프로그램 검토 완료', content: '요청하신 캠프 프로그램 검토가 완료되었습니다. 결재 라인에 상신하였으니 확인 바랍니다.', senderName: '박철수', date: '2025-09-03T11:15:00', read: false, important: false },
-    { id: 3, subject: '상담 프로그램 업데이트 안내', content: '상담팀에서 새로운 프로그램을 도입하게 되어 안내드립니다. 자세한 내용은 첨부된 파일을 확인해주세요.', senderName: '김민정', date: '2025-09-02T16:45:00', read: true, important: false }
-  ],
-  events: [
-    { id: 1, title: '교육팀 주간회의', date: '2025-09-14', startTime: '10:00', endTime: '11:00', location: '회의실 A' },
-    { id: 2, title: '청소년 상담 세션', date: '2025-09-14', startTime: '14:00', endTime: '16:00', location: '상담실 1' },
-    { id: 3, title: '월례 보고서 작성', date: '2025-09-15', startTime: '16:30', endTime: '17:30', location: '사무실' }
-  ]
-};
-
-const MENU_ITEMS = [
-  { id: 'dashboard', name: '대시보드', icon: Home },
-  { id: 'approval', name: '전자결재', icon: CreditCard },
-  { id: 'mail', name: '사내메일', icon: Mail },
-  { id: 'board', name: '게시판', icon: FileText },
-  { id: 'employees', name: '사원관리', icon: Users },
-  { id: 'documents', name: '문서관리', icon: FileText },
-  { id: 'calendar', name: '일정관리', icon: Calendar }
+const initialUsers: UserProfile[] = [
+    userProfile,
+    { id: 2, name: '이수진', team: '디자인팀', position: '디자이너', email: 'sjlee@sj-hs.or.kr', phone: '010-2345-6789', avatar: '이' },
+    { id: 3, name: '박서준', team: '개발팀', position: '개발자', email: 'sjpark@sj-hs.or.kr', phone: '010-3456-7890', avatar: '박' },
+    { id: 4, name: '최은지', team: '인사팀', position: '인사담당자', email: 'ejchoi@sj-hs.or.kr', phone: '010-4567-8901', avatar: '최' },
 ];
 
-// --- HELPER COMPONENTS ---
+const initialEmails: Email[] = [
+    { id: 1, from: 'NICE평가정보', subject: '[NICE지키미] 윤*성님의 대출정보가 변경됐습니다.', date: '2025-09-20 11:06', unread: true, important: true, hasAttachment: false, size: '13.77 KB', mailbox: 'inbox' },
+    { id: 2, from: '삼성화재', subject: '[삼성화재] 개인정보 이용내역 안내', date: '2025-09-19 16:30', unread: false, important: false, hasAttachment: true, size: '13.95 KB', mailbox: 'inbox' },
+    { id: 3, from: 'bizmeka 관리자', subject: '[결재문서 승인(참조)요청] [(사)S&J 희망나눔] 휴가신청_9/19(금) 오전반차', date: '2025-09-19 11:38', unread: false, important: false, hasAttachment: false, size: '7.89 KB', mailbox: 'inbox' },
+    { id: 4, from: '김동현', subject: '[외국어교육지원사업] 2025 하반기 활동가 리스트 재공유', date: '2025-09-19 10:54', unread: true, important: false, hasAttachment: false, size: '26.33 KB', mailbox: 'inbox' },
+    { id: 5, from: '서울시청', subject: '22일부터 소비쿠폰 2차 접수, 1차와 달라진 점은?', date: '2025-09-19 05:02', unread: false, important: false, hasAttachment: true, size: '156.6 KB', mailbox: 'inbox' },
+    { id: 6, from: '김민수', to: '박서준', subject: 'Re: 2025년 워크샵 장소 추천', date: '2025-09-18 14:00', unread: false, important: false, hasAttachment: false, size: '10.2 KB', mailbox: 'sent' },
+    { id: 7, from: '(광고) 주식정보', subject: '반드시 오를 종목! 지금 확인하세요.', date: '2025-09-18 11:00', unread: true, important: false, hasAttachment: false, size: '25.1 KB', mailbox: 'spam' },
+    { id: 8, from: '이혜진', subject: '삭제된 회의록 복구 요청', date: '2025-09-17 09:30', unread: false, important: false, hasAttachment: false, size: '5.5 KB', mailbox: 'trash' },
+    { id: 9, from: '김민수', subject: '(초안) 2025년 4분기 사업 계획', date: '2025-09-21 15:00', unread: false, important: false, hasAttachment: true, size: '256 KB', mailbox: 'draft' },
+    { id: 10, from: '김민수', subject: '참고: 경쟁사 분석 자료', date: '2025-09-20 18:30', unread: true, important: false, hasAttachment: false, size: '5.2 KB', mailbox: 'archive' },
+];
 
-const Dashboard: React.FC<{
-  user: User;
-  stats: { pendingApprovals: number; unreadMessages: number; totalEmployees: number; totalPrograms: number };
-  approvals: Approval[];
-  posts: Post[];
-  lastSync: Date | null;
-}> = ({ user, stats, approvals, posts, lastSync }) => (
-  <div className="space-y-6 animate-fadeIn">
-    <div className="flex items-center justify-between">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">안녕하세요, {user.name}님!</h2>
-        <p className="text-gray-600 mt-1">사단법인 S&J희망나눔 ERP 시스템</p>
-        {lastSync && (
-          <p className="text-xs text-gray-400 mt-1">
-            마지막 동기화: {lastSync.toLocaleTimeString('ko-KR')}
-          </p>
-        )}
-      </div>
-      <div className="flex items-center space-x-2 bg-blue-50 px-4 py-2 rounded-lg">
-        <Building2 className="h-5 w-5 text-blue-600" />
-        <span className="text-blue-800 font-medium">청소년교육기관</span>
-      </div>
-    </div>
+const initialApprovals: Approval[] = [
+    { id: 1, title: '2025년 3분기 예산안', requester: '박서준', date: '2024-09-20', status: 'pending', content: '2025년 3분기 예산안입니다. 검토 후 승인 부탁드립니다.' },
+    { id: 2, title: '휴가 신청서 (2024-10-01)', requester: '이하나', date: '2024-09-19', status: 'pending', content: '개인 사정으로 10월 1일 휴가를 신청합니다.' },
+    { id: 3, title: '장비 구매 요청', requester: '최민준', date: '2024-09-18', status: 'approved', content: '개발팀 신규 모니터 3대 구매 요청.' },
+];
 
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-blue-100">대기 중인 결재</p>
-            <p className="text-3xl font-bold mt-2">{stats.pendingApprovals}건</p>
-          </div>
-          <CreditCard className="h-8 w-8 text-blue-200" />
-        </div>
-      </div>
-      <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-green-100">읽지 않은 메일</p>
-            <p className="text-3xl font-bold mt-2">{stats.unreadMessages}건</p>
-          </div>
-          <Mail className="h-8 w-8 text-green-200" />
-        </div>
-      </div>
-      <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-purple-100">전체 직원</p>
-            <p className="text-3xl font-bold mt-2">{stats.totalEmployees}명</p>
-          </div>
-          <Users className="h-8 w-8 text-purple-200" />
-        </div>
-      </div>
-      <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl p-6 text-white shadow-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-orange-100">교육 프로그램</p>
-            <p className="text-3xl font-bold mt-2">{stats.totalPrograms}개</p>
-          </div>
-          <GraduationCap className="h-8 w-8 text-orange-200" />
-        </div>
-      </div>
-    </div>
+const initialPosts: Post[] = [
+    { id: 1, title: '2025년도 워크샵 장소 공지', author: '인사팀', date: '2024-09-20', views: 102, content: '2025년도 워크샵은 제주도에서 진행될 예정입니다. 자세한 일정은 추후 공지하겠습니다.' },
+    { id: 2, title: '사내 IT 시스템 점검 안내 (9/22)', author: 'IT지원팀', date: '2024-09-19', views: 253, content: '9월 22일 00:00 ~ 02:00 까지 시스템 점검이 있습니다. 해당 시간에는 ERP 접속이 불가능합니다.' },
+];
 
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="bg-white rounded-xl p-6 shadow-sm border">
-        <h3 className="text-lg font-semibold mb-4 flex items-center"><CreditCard className="h-5 w-5 mr-2 text-blue-600" />최근 결재 현황</h3>
-        <div className="space-y-3">
-          {approvals.slice(0, 3).map(approval => (
-            <div key={approval.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div>
-                <p className="font-medium text-gray-900">{approval.title}</p>
-                <p className="text-sm text-gray-600">{approval.requester}</p>
-              </div>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                approval.status === 'approved' ? 'bg-green-100 text-green-800' :
-                approval.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                'bg-red-100 text-red-800'
-              }`}>
-                {approval.status === 'approved' ? '승인' : approval.status === 'pending' ? '대기' : '반려'}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="bg-white rounded-xl p-6 shadow-sm border">
-        <h3 className="text-lg font-semibold mb-4 flex items-center"><FileText className="h-5 w-5 mr-2 text-green-600" />최근 게시글</h3>
-        <div className="space-y-3">
-          {posts.slice(0, 3).map(post => (
-            <div key={post.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div>
-                <p className="font-medium text-gray-900">{post.title}</p>
-                <p className="text-sm text-gray-600">{post.author} • {post.date}</p>
-              </div>
-              <div className="flex items-center text-sm text-gray-500"><Eye className="h-4 w-4 mr-1" />{post.views}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  </div>
-);
+const initialChatMessages: ChatMessage[] = [
+  { id: 1, user: { name: '이수진', team: '디자인팀', avatar: '이' }, text: '안녕하세요! 오늘 오후 회의 자료 준비 다 되셨나요?', timestamp: '오후 2:01', isCurrentUser: false },
+  { id: 2, user: { name: userProfile.name, team: userProfile.team, avatar: userProfile.avatar }, text: '네, 거의 다 됐습니다. 최종 검토만 남았어요.', timestamp: '오후 2:02', isCurrentUser: true },
+  { id: 3, user: { name: '박서준', team: '개발팀', avatar: '박' }, text: '회의실 예약은 제가 해뒀습니다. 3시, 대회의실입니다.', timestamp: '오후 2:03', isCurrentUser: false },
+  { id: 4, user: { name: userProfile.name, team: userProfile.team, avatar: userProfile.avatar }, text: '감사합니다! 그럼 10분 전까지 최종본 공유 드릴게요.', timestamp: '오후 2:04', isCurrentUser: true },
+];
 
-const ApprovalView: React.FC<{
-  approvals: Approval[];
-  handleApprovalStatusChange: (id: number, status: ApprovalStatus) => void;
-  onNewRequestClick: () => void;
-  onApprovalClick: (approval: Approval) => void;
-}> = ({ approvals, handleApprovalStatusChange, onNewRequestClick, onApprovalClick }) => (
-  <div className="space-y-6 animate-fadeIn">
-    <div className="flex justify-between items-center">
-      <h2 className="text-2xl font-bold text-gray-900">전자결재</h2>
-      <button onClick={onNewRequestClick} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-blue-700 transition-colors">
-        <Plus className="h-4 w-4 mr-2" /> 새 결재 요청
-      </button>
-    </div>
-    <div className="bg-white rounded-xl shadow-sm border overflow-x-auto">
-      <table className="w-full min-w-max">
-        <thead>
-          <tr className="border-b text-left text-sm text-gray-600">
-            <th className="p-4 font-medium">제목</th>
-            <th className="p-4 font-medium">신청자</th>
-            <th className="p-4 font-medium">금액</th>
-            <th className="p-4 font-medium">날짜</th>
-            <th className="p-4 font-medium">상태</th>
-            <th className="p-4 font-medium">액션</th>
-          </tr>
-        </thead>
-        <tbody>
-          {approvals.map(approval => (
-            <tr key={approval.id} className="border-b hover:bg-gray-50">
-              <td className="p-4 font-medium text-gray-900">
-                <span onClick={() => onApprovalClick(approval)} className="cursor-pointer hover:underline hover:text-blue-600">
-                  {approval.title}
-                </span>
-              </td>
-              <td className="p-4 text-gray-600">{approval.requester}</td>
-              <td className="p-4 text-gray-600">{approval.amount}</td>
-              <td className="p-4 text-gray-600">{approval.date}</td>
-              <td className="p-4">
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  approval.status === 'approved' ? 'bg-green-100 text-green-800' :
-                  approval.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-red-100 text-red-800'
-                }`}>
-                  {approval.status === 'approved' ? '승인' : approval.status === 'pending' ? '대기' : '반려'}
-                </span>
-              </td>
-              <td className="p-4">
-                {approval.status === 'pending' && (
-                  <div className="flex space-x-2">
-                    <button onClick={() => handleApprovalStatusChange(approval.id, 'approved')} className="text-white bg-green-500 hover:bg-green-600 text-xs px-3 py-1 rounded transition-colors">승인</button>
-                    <button onClick={() => handleApprovalStatusChange(approval.id, 'rejected')} className="text-white bg-red-500 hover:bg-red-600 text-xs px-3 py-1 rounded transition-colors">반려</button>
-                  </div>
+const today = new Date();
+const initialSchedules: ScheduleEvent[] = [
+    { id: 1, title: '주간 업무 보고', start: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 10, 0), end: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 10, 30), type: '업무', owner: '김민수', color: 'blue' },
+    { id: 2, title: '교육팀 정기 회의', start: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 14, 0), end: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 15, 0), type: '부서', owner: '교육팀', color: 'green' },
+    { id: 3, title: '전사 워크샵', start: new Date(2025, 8, 26), end: new Date(2025, 8, 26), type: '회사', owner: 'S&J희망나눔', color: 'purple' },
+    { id: 4, title: '개천절', start: new Date(2025, 9, 3), end: new Date(2025, 9, 3), type: '회사', owner: 'S&J희망나눔', color: 'red' },
+];
+
+const initialDocuments: Document[] = [
+    { id: 1, name: '공용문서', type: 'folder', owner: '관리자', modifiedDate: '2024-09-01', size: null, parentId: null },
+    { id: 2, name: '인사팀', type: 'folder', owner: '최은지', modifiedDate: '2024-09-10', size: null, parentId: null },
+    { id: 3, name: '교육팀', type: 'folder', owner: '김민수', modifiedDate: '2024-09-15', size: null, parentId: null },
+    { id: 4, name: '2025년 휴가 규정.pdf', type: 'pdf', owner: '최은지', modifiedDate: '2024-09-11', size: '1.2MB', parentId: 2 },
+    { id: 5, name: '신입사원 교육자료.docx', type: 'docx', owner: '김민수', modifiedDate: '2024-09-18', size: '5.4MB', parentId: 3 },
+    { id: 6, name: '사내 로고 파일.zip', type: 'txt', owner: '이수진', modifiedDate: '2024-09-05', size: '10.8MB', parentId: 1 },
+    { id: 7, name: '회의록', type: 'folder', owner: '관리자', modifiedDate: '2024-09-20', size: null, parentId: 1 },
+    { id: 8, name: '20240920_주간회의록.txt', type: 'txt', owner: '김민수', modifiedDate: '2024-09-20', size: '25KB', parentId: 7 },
+];
+
+
+const getScheduleColor = (type: ScheduleEventType) => {
+    switch (type) {
+        case '업무': return 'blue';
+        case '부서': return 'green';
+        case '회사': return 'purple';
+        default: return 'gray';
+    }
+}
+
+// --- HELPER HOOK for screen size ---
+const useIsMobile = () => {
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+    return isMobile;
+};
+
+// --- MAIN APP COMPONENT ---
+export default function App() {
+    const isMobile = useIsMobile();
+    const [activeMenu, setActiveMenu] = useState('대시보드');
+    const [mobileView, setMobileView] = useState('home'); 
+    const [mobileHistory, setMobileHistory] = useState<string[]>(['home']);
+
+    // --- All Data States ---
+    const [users, setUsers] = useState<UserProfile[]>(initialUsers);
+    const [emails, setEmails] = useState<Email[]>(initialEmails);
+    const [approvals, setApprovals] = useState<Approval[]>(initialApprovals);
+    const [posts, setPosts] = useState<Post[]>(initialPosts);
+    const [chatMessages, setChatMessages] = useState<ChatMessage[]>(initialChatMessages);
+    const [schedules, setSchedules] = useState<ScheduleEvent[]>(initialSchedules);
+    const [documents, setDocuments] = useState<Document[]>(initialDocuments);
+    
+    // --- CRUD Handlers ---
+    const handleSaveUser = (user: UserProfile) => {
+      if (user.id) {
+        setUsers(users.map(u => u.id === user.id ? user : u));
+      } else {
+        const newUser = { ...user, id: Date.now(), avatar: user.name.charAt(0) };
+        setUsers([...users, newUser]);
+      }
+    };
+    const handleDeleteUser = (userId: number) => {
+      if (window.confirm('이 사용자를 삭제하시겠습니까?')) {
+        setUsers(users.filter(u => u.id !== userId));
+      }
+    };
+
+    const handleSavePost = (post: Post) => {
+      if (post.id) {
+        setPosts(posts.map(p => p.id === post.id ? post : p));
+      } else {
+        const newPost = { ...post, id: Date.now(), author: userProfile.name, date: new Date().toISOString().split('T')[0], views: 0 };
+        setPosts([newPost, ...posts]);
+      }
+    };
+    const handleDeletePost = (postId: number) => {
+      if (window.confirm('이 게시물을 삭제하시겠습니까?')) {
+        setPosts(posts.filter(p => p.id !== postId));
+      }
+    };
+
+    const handleSaveApproval = (approval: Approval) => {
+        const newApproval = { ...approval, id: Date.now(), requester: userProfile.name, date: new Date().toISOString().split('T')[0], status: 'pending' as const };
+        setApprovals([newApproval, ...approvals]);
+    };
+    
+    const handleSendEmail = (email: Partial<Email>) => {
+      const newEmail: Email = {
+        id: Date.now(),
+        from: userProfile.name,
+        to: email.to,
+        subject: email.subject || '(제목 없음)',
+        body: email.body,
+        date: new Date().toISOString().replace('T', ' ').substring(0, 16),
+        unread: false,
+        important: false,
+        hasAttachment: false,
+        size: `${(email.body?.length || 0) / 1024} KB`,
+        mailbox: 'sent'
+      };
+      setEmails([...emails, newEmail]);
+    };
+
+    const handleUpdateChatMessage = (messageId: number, newText: string) => {
+        setChatMessages(messages => messages.map(msg => msg.id === messageId ? {...msg, text: newText} : msg));
+    };
+
+    const handleDeleteChatMessage = (messageId: number) => {
+        setChatMessages(messages => messages.filter(msg => msg.id !== messageId));
+    };
+    
+    const handleSaveDocument = (doc: Partial<Document>, parentId: number | null) => {
+      if (doc.id) { // rename
+        setDocuments(docs => docs.map(d => d.id === doc.id ? {...d, name: doc.name!} : d));
+      } else { // create new
+        const newDoc: Document = {
+          id: Date.now(),
+          name: doc.name!,
+          type: doc.type!,
+          owner: userProfile.name,
+          modifiedDate: new Date().toISOString().split('T')[0],
+          size: doc.type === 'folder' ? null : '0KB',
+          parentId: parentId
+        };
+        setDocuments([...documents, newDoc]);
+      }
+    };
+    const handleDeleteDocument = (docId: number) => {
+      if (window.confirm('이 항목을 삭제하시겠습니까? 하위 항목도 모두 삭제됩니다.')) {
+        // Recursive delete not implemented for simplicity, just deleting the item
+        setDocuments(docs => docs.filter(d => d.id !== docId));
+      }
+    };
+
+
+    const unreadEmailsCount = useMemo(() => emails.filter(e => e.mailbox === 'inbox' && e.unread).length, [emails]);
+    const pendingApprovalsCount = useMemo(() => approvals.filter(a => a.status === 'pending').length, [approvals]);
+    
+    const navItems: NavItem[] = [
+        { id: '대시보드', label: '대시보드', icon: LayoutDashboard },
+        { id: '전자결재', label: '전자결재', icon: FileCheck, count: pendingApprovalsCount },
+        { id: '사내메일', label: '사내메일', icon: Mail, count: unreadEmailsCount },
+        { id: '사내 채팅', label: '사내 채팅', icon: MessageSquare },
+        { id: '게시판', label: '게시판', icon: Files },
+        { id: '사원관리', label: '사원관리', icon: Users },
+        { id: '문서관리', label: '문서관리', icon: FileText },
+        { id: '일정관리', label: '일정관리', icon: Calendar },
+    ];
+    
+    const mobileGridItems = [
+      { label: '메일', icon: Mail, view: 'mail', count: unreadEmailsCount }, { label: '일정', icon: Calendar, view: '일정관리' }, { label: '전자결재', icon: FileCheck, view: '전자결재', count: pendingApprovalsCount }, { label: '게시판', icon: Files, view: '게시판' },
+      { label: '사원관리', icon: Users, view: '사원관리' }, { label: '문서관리', icon: FileText, view: '문서관리' }, { label: '사내 채팅', icon: MessageSquare, view: '사내 채팅' }, { label: '근태', icon: User, view: '#' },
+    ];
+
+    const navigateMobile = (view: string) => {
+        setMobileView(view);
+        setMobileHistory(prev => [...prev, view]);
+    };
+
+    const goBackMobile = () => {
+        if (mobileHistory.length > 1) {
+            const newHistory = [...mobileHistory];
+            newHistory.pop();
+            setMobileView(newHistory[newHistory.length - 1]);
+            setMobileHistory(newHistory);
+        }
+    };
+    
+    const MainView = () => {
+        switch (activeMenu) {
+            case '대시보드': return <DashboardView userProfile={userProfile} approvals={approvals} emails={emails} posts={posts} schedules={schedules} setActiveMenu={setActiveMenu} />;
+            case '사내메일': return <MailView emails={emails} setEmails={setEmails} isMobile={false} onSendEmail={handleSendEmail}/>;
+            case '전자결재': return <ApprovalView approvals={approvals} onSave={handleSaveApproval} currentUser={userProfile}/>;
+            case '게시판': return <BoardView posts={posts} onSave={handleSavePost} onDelete={handleDeletePost} currentUser={userProfile}/>;
+            case '사내 채팅': return <ChatView messages={chatMessages} setMessages={setChatMessages} currentUser={userProfile} onUpdate={handleUpdateChatMessage} onDelete={handleDeleteChatMessage}/>;
+            case '일정관리': return <ScheduleView events={schedules} setEvents={setSchedules} currentUser={userProfile} />;
+            case '사원관리': return <EmployeeView users={users} onSave={handleSaveUser} onDelete={handleDeleteUser}/>;
+            case '문서관리': return <DocumentView documents={documents} onSave={handleSaveDocument} onDelete={handleDeleteDocument}/>;
+            default: return <div className="p-8"><h1 className="text-2xl font-bold">{activeMenu}</h1><p>콘텐츠 준비 중입니다.</p></div>;
+        }
+    };
+
+    const MobileSubView = () => {
+        const viewParts = mobileView.split('-');
+        const baseView = viewParts[0];
+
+        switch (baseView) {
+            case 'mail': return <MailView emails={emails} setEmails={setEmails} isMobile={true} mobileView={mobileView} navigateMobile={navigateMobile} onSendEmail={handleSendEmail} />;
+            case '전자결재': return <ApprovalView approvals={approvals} onSave={handleSaveApproval} currentUser={userProfile} />;
+            case '게시판': return <BoardView posts={posts} onSave={handleSavePost} onDelete={handleDeletePost} currentUser={userProfile} />;
+            case '사내 채팅': return <ChatView messages={chatMessages} setMessages={setChatMessages} currentUser={userProfile} onUpdate={handleUpdateChatMessage} onDelete={handleDeleteChatMessage}/>;
+            case '일정관리': return <ScheduleView events={schedules} setEvents={setSchedules} isMobile={true} currentUser={userProfile} />;
+            case '사원관리': return <EmployeeView users={users} onSave={handleSaveUser} onDelete={handleDeleteUser} />;
+            case '문서관리': return <DocumentView documents={documents} onSave={handleSaveDocument} onDelete={handleDeleteDocument} />;
+            default: return <div className="p-4"><h1 className="text-xl font-bold">{mobileView}</h1><p>콘텐츠 준비 중입니다.</p></div>;
+        }
+    };
+
+    if (isMobile) {
+        return (
+            <div className="flex flex-col h-screen bg-gray-100 font-sans">
+                {mobileView === 'home' ? (
+                    <>
+                        <header className="bg-white p-4 flex justify-between items-center shadow">
+                            <h1 className="text-lg font-bold text-orange-500">S&J희망나눔</h1>
+                            <div className="flex items-center space-x-4">
+                               <Power size={24} className="text-gray-600" />
+                               <Users size={24} className="text-gray-600" />
+                               <Mail size={24} className="text-gray-600" />
+                            </div>
+                        </header>
+                        <main className="flex-grow p-4 grid grid-cols-4 gap-4">
+                            {mobileGridItems.map(item => (
+                                <button key={item.label} onClick={() => item.view !== '#' && navigateMobile(item.view)} className="flex flex-col items-center justify-center bg-white p-2 rounded-lg shadow space-y-2 relative">
+                                    {item.count > 0 && <span className="absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">{item.count > 99 ? '99+' : item.count}</span>}
+                                    <item.icon size={32} className="text-gray-700" />
+                                    <span className="text-xs text-center">{item.label}</span>
+                                </button>
+                            ))}
+                        </main>
+                        <footer className="bg-white shadow-t flex justify-around p-2">
+                             <button onClick={() => navigateMobile('home')} className="flex flex-col items-center text-red-500">
+                                <Home size={24} />
+                                <span className="text-xs">홈</span>
+                            </button>
+                            <button className="flex flex-col items-center text-gray-600">
+                                <Power size={24} />
+                                <span className="text-xs">출근</span>
+                            </button>
+                            <button className="flex flex-col items-center text-gray-600">
+                                <Power size={24} className="rotate-180" />
+                                <span className="text-xs">퇴근</span>
+                            </button>
+                            <button className="flex flex-col items-center text-gray-600">
+                                <MoreHorizontal size={24} />
+                                <span className="text-xs">더보기</span>
+                            </button>
+                        </footer>
+                    </>
+                ) : (
+                    <div className="flex flex-col h-full">
+                       <header className="bg-white p-4 flex items-center shadow-md sticky top-0 z-10">
+                            <button onClick={goBackMobile} className="mr-4"><ChevronLeft size={24} /></button>
+                            <h2 className="text-lg font-bold flex-grow text-center">
+                              {mobileView.startsWith('mail-') ? mailboxes[mobileView.split('-')[1]].label : mobileView}
+                            </h2>
+                            <button className="ml-4 invisible"><ChevronLeft size={24} /></button>
+                        </header>
+                       <main className="flex-grow overflow-y-auto bg-white">
+                         <MobileSubView />
+                       </main>
+                    </div>
                 )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  </div>
-);
+            </div>
+        );
+    }
 
-const MailView: React.FC<{
-    messages: Message[];
-    onMessageClick: (message: Message) => void;
-    onNewMailClick: () => void;
-}> = ({ messages, onMessageClick, onNewMailClick }) => {
     return (
-        <div className="space-y-6 animate-fadeIn">
-            <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900">사내 메일</h2>
-                <button onClick={onNewMailClick} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-blue-700 transition-colors">
-                    <Plus className="h-4 w-4 mr-2" />메일 작성
+        <div className="flex h-screen bg-gray-50 font-sans">
+            {/* Desktop Sidebar */}
+            <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
+                <div className="p-4 border-b border-gray-200 flex items-center space-x-3">
+                    <div className="bg-blue-600 text-white p-3 rounded-lg">
+                        <Files size={24} />
+                    </div>
+                    <div>
+                        <h1 className="font-bold text-lg text-gray-800">S&J희망나눔</h1>
+                        <p className="text-xs text-gray-500">청소년 교육기관 ERP</p>
+                    </div>
+                </div>
+                <nav className="flex-grow pt-4">
+                    <ul>
+                        {navItems.map(item => (
+                            <li key={item.id} className="px-4 mb-1">
+                                <button onClick={() => setActiveMenu(item.label)} className={`w-full flex items-center justify-between p-3 rounded-lg text-sm transition-all duration-200 ${activeMenu === item.label ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`}>
+                                    <div className="flex items-center">
+                                        <item.icon size={20} className="mr-3" />
+                                        <span className={activeMenu === item.label ? 'font-semibold' : ''}>{item.label}</span>
+                                    </div>
+                                    {item.count > 0 && (
+                                        <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${activeMenu === item.label ? 'bg-white text-blue-600' : 'bg-yellow-400 text-gray-800'}`}>
+                                            {item.count}
+                                        </span>
+                                    )}
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                </nav>
+                <div className="p-4 border-t border-gray-200">
+                     <div className="bg-gray-100 p-3 rounded-lg flex items-center text-sm text-gray-700">
+                        <Database size={20} className="mr-3 text-green-500" />
+                        <span>DB 상태: <span className="font-semibold text-green-600">정상</span></span>
+                    </div>
+                     <button className="w-full flex items-center p-3 mt-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100">
+                         <LogOut size={20} className="mr-3" />
+                         <span>로그아웃</span>
+                     </button>
+                </div>
+            </aside>
+            {/* Main Content */}
+            <div className="flex-1 flex flex-col">
+                <header className="bg-white border-b border-gray-200 flex items-center justify-end p-4 h-16">
+                    <div className="flex items-center space-x-6">
+                        <button className="relative text-gray-500 hover:text-gray-800">
+                            <Bell size={24} />
+                            <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
+                        </button>
+                        <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">{userProfile.avatar}</div>
+                            <div>
+                                <p className="font-semibold text-sm text-gray-800">{userProfile.name}</p>
+                                <p className="text-xs text-gray-500">{userProfile.team}, {userProfile.position}</p>
+                            </div>
+                            <ChevronDown size={16} className="text-gray-400" />
+                        </div>
+                    </div>
+                </header>
+                <main className="flex-1 overflow-y-auto bg-gray-50">
+                    <MainView />
+                </main>
+            </div>
+        </div>
+    );
+}
+
+const mailboxes = {
+    'inbox': { label: '받은메일함', icon: Inbox },
+    'sent': { label: '보낸메일함', icon: Send },
+    'archive': { label: '내게쓴메일함', icon: Archive },
+    'draft': { label: '임시 보관함', icon: FileText },
+    'spam': { label: '스팸메일함', icon: FileWarning },
+    'trash': { label: '휴지통', icon: Trash },
+};
+
+// --- VIEWS ---
+
+const DashboardCard = ({ icon: Icon, title, value, unit, color, onClick }: { icon: React.ElementType, title: string, value: number, unit: string, color: 'yellow' | 'blue' | 'green' | 'purple', onClick: () => void }) => {
+    const colors = {
+        yellow: { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: 'text-yellow-500' },
+        blue: { bg: 'bg-blue-100', text: 'text-blue-800', icon: 'text-blue-500' },
+        green: { bg: 'bg-green-100', text: 'text-green-800', icon: 'text-green-500' },
+        purple: { bg: 'bg-purple-100', text: 'text-purple-800', icon: 'text-purple-500' },
+    };
+    const selectedColor = colors[color];
+
+    return (
+        <div onClick={onClick} className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer flex items-start">
+            <div className={`p-3 rounded-full ${selectedColor.bg} mr-4`}>
+                <Icon size={24} className={selectedColor.icon} />
+            </div>
+            <div>
+                <p className="text-sm text-gray-500">{title}</p>
+                <p className="text-2xl font-bold text-gray-800 mt-1">
+                    {value} <span className="text-lg font-medium">{unit}</span>
+                </p>
+            </div>
+        </div>
+    );
+};
+
+function DashboardView({ userProfile, approvals, emails, posts, schedules, setActiveMenu }: { userProfile: UserProfile, approvals: Approval[], emails: Email[], posts: Post[], schedules: ScheduleEvent[], setActiveMenu: (menu: string) => void }) {
+    const pendingApprovalsCount = useMemo(() => approvals.filter(a => a.status === 'pending').length, [approvals]);
+    const unreadEmailsCount = useMemo(() => emails.filter(e => e.mailbox === 'inbox' && e.unread).length, [emails]);
+
+    const isSameDate = (d1: Date, d2: Date) => d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
+    const todaysSchedules = useMemo(() => schedules.filter(s => isSameDate(s.start, new Date())).sort((a, b) => a.start.getTime() - b.start.getTime()), [schedules]);
+    
+    const recentApprovals = useMemo(() => [...approvals].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5), [approvals]);
+    const recentPosts = useMemo(() => [...posts].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5), [posts]);
+    
+    const formatTime = (date: Date) => `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    
+    return (
+        <div className="p-6 lg:p-8">
+            <h1 className="text-3xl font-bold text-gray-800">안녕하세요, {userProfile.name}님!</h1>
+            <p className="text-gray-500 mt-1">오늘의 주요 현황을 확인하세요.</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mt-8">
+                <DashboardCard icon={FileCheck} title="결재 대기" value={pendingApprovalsCount} unit="건" color="yellow" onClick={() => setActiveMenu('전자결재')} />
+                <DashboardCard icon={Mail} title="안 읽은 메일" value={unreadEmailsCount} unit="통" color="blue" onClick={() => setActiveMenu('사내메일')} />
+                <DashboardCard icon={Calendar} title="오늘의 일정" value={todaysSchedules.length} unit="개" color="green" onClick={() => setActiveMenu('일정관리')} />
+                <DashboardCard icon={Files} title="최신 게시물" value={posts.length} unit="개" color="purple" onClick={() => setActiveMenu('게시판')} />
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mt-8">
+                <div className="xl:col-span-2 bg-white p-6 rounded-lg shadow">
+                    <h2 className="text-xl font-bold text-gray-800 mb-4">오늘의 일정</h2>
+                    {todaysSchedules.length > 0 ? (
+                        <ul className="space-y-4">
+                            {todaysSchedules.map(event => (
+                                <li key={event.id} className="flex items-center space-x-4">
+                                    <div className={`w-14 text-center px-2 py-1 rounded-md bg-${event.color}-100 text-${event.color}-800`}>
+                                        <p className="font-bold text-sm">{formatTime(event.start)}</p>
+                                    </div>
+                                    <div className="flex-grow border-l-4 pl-4" style={{borderColor: `var(--color-${event.color}-500, ${event.color})`}}>
+                                        <p className="font-semibold text-gray-700">{event.title}</p>
+                                        <p className="text-sm text-gray-500">{event.type} / {event.owner}</p>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-gray-500">오늘 예정된 일정이 없습니다.</p>
+                    )}
+                </div>
+                
+                <div className="bg-white p-6 rounded-lg shadow">
+                     <h2 className="text-xl font-bold text-gray-800 mb-4">최신 게시물</h2>
+                      {recentPosts.length > 0 ? (
+                        <ul className="space-y-3">
+                            {recentPosts.map(post => (
+                                <li key={post.id} className="group cursor-pointer">
+                                    <p className="font-semibold text-gray-700 group-hover:text-blue-600 truncate">{post.title}</p>
+                                    <div className="flex justify-between text-sm text-gray-500 mt-1">
+                                        <span>{post.author}</span>
+                                        <span>{post.date}</span>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                         <p className="text-gray-500">최신 게시물이 없습니다.</p>
+                    )}
+                </div>
+            </div>
+
+            <div className="mt-8 bg-white p-6 rounded-lg shadow">
+                <h2 className="text-xl font-bold text-gray-800 mb-4">최근 결재 문서</h2>
+                 {recentApprovals.length > 0 ? (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead className="text-left text-gray-500">
+                                <tr>
+                                    <th className="p-2 font-medium">문서 제목</th>
+                                    <th className="p-2 font-medium">기안자</th>
+                                    <th className="p-2 font-medium">상신일</th>
+                                    <th className="p-2 font-medium text-center">상태</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {recentApprovals.map(item => (
+                                    <tr key={item.id} className="border-t">
+                                        <td className="p-2 text-gray-800 font-medium">{item.title}</td>
+                                        <td className="p-2 text-gray-600">{item.requester}</td>
+                                        <td className="p-2 text-gray-600">{item.date}</td>
+                                        <td className="p-2 text-center">
+                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${item.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : item.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                {item.status === 'pending' ? '대기중' : item.status === 'approved' ? '승인' : '반려'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <p className="text-gray-500">최근 결재 문서가 없습니다.</p>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function MailView({ emails, setEmails, isMobile, mobileView, navigateMobile, onSendEmail }: { emails: Email[]; setEmails: React.Dispatch<React.SetStateAction<Email[]>>; isMobile: boolean; mobileView?: string; navigateMobile?: (view: string) => void; onSendEmail: (email: Partial<Email>) => void; }) {
+    const [activeMailbox, setActiveMailbox] = useState<'inbox' | 'sent' | 'spam' | 'trash' | 'archive' | 'draft'>('inbox');
+    const [selectedEmails, setSelectedEmails] = useState<Set<number>>(new Set());
+    const [currentPage, setCurrentPage] = useState(1);
+    const [isComposing, setIsComposing] = useState(false);
+    const emailsPerPage = 10;
+
+    const currentMailboxes = useMemo(() => ({
+        'inbox': { label: '받은메일함', icon: Inbox, count: emails.filter(e => e.mailbox === 'inbox' && e.unread).length },
+        'sent': { label: '보낸메일함', icon: Send, count: emails.filter(e => e.mailbox === 'sent').length },
+        'archive': { label: '내게쓴메일함', icon: Archive, count: emails.filter(e => e.mailbox === 'archive' && e.unread).length },
+        'draft': { label: '임시 보관함', icon: FileText, count: emails.filter(e => e.mailbox === 'draft').length },
+        'spam': { label: '스팸메일함', icon: FileWarning, count: emails.filter(e => e.mailbox === 'spam').length },
+        'trash': { label: '휴지통', icon: Trash, count: emails.filter(e => e.mailbox === 'trash').length },
+    }), [emails]);
+    
+    const mailboxOrder: ('inbox' | 'sent' | 'archive' | 'draft' | 'spam' | 'trash')[] = ['inbox', 'sent', 'archive', 'draft', 'spam', 'trash'];
+
+    const filteredEmails = useMemo(() => emails.filter(e => e.mailbox === activeMailbox).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [emails, activeMailbox]);
+    const paginatedEmails = useMemo(() => filteredEmails.slice((currentPage - 1) * emailsPerPage, currentPage * emailsPerPage), [filteredEmails, currentPage]);
+    const totalPages = Math.ceil(filteredEmails.length / emailsPerPage);
+
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setSelectedEmails(new Set(paginatedEmails.map(email => email.id)));
+        } else {
+            setSelectedEmails(new Set());
+        }
+    };
+    
+    const handleSelectOne = (id: number) => {
+        const newSelection = new Set(selectedEmails);
+        if (newSelection.has(id)) {
+            newSelection.delete(id);
+        } else {
+            newSelection.add(id);
+        }
+        setSelectedEmails(newSelection);
+    };
+
+    const moveSelectedEmails = (targetMailbox: 'inbox' | 'sent' | 'spam' | 'trash' | 'archive' | 'draft') => {
+        const updatedEmails = emails.map(email => {
+            if (selectedEmails.has(email.id)) {
+                const isRestoring = (email.mailbox === 'spam' || email.mailbox === 'trash') && targetMailbox === 'inbox';
+                return { ...email, mailbox: targetMailbox, unread: isRestoring ? true : email.unread };
+            }
+            return email;
+        });
+        setEmails(updatedEmails);
+        setSelectedEmails(new Set());
+    };
+
+    const deleteSelectedEmailsPermanently = () => {
+        const updatedEmails = emails.filter(email => !selectedEmails.has(email.id));
+        setEmails(updatedEmails);
+        setSelectedEmails(new Set());
+    };
+
+    const toggleImportance = (id: number) => {
+        setEmails(emails.map(e => e.id === id ? {...e, important: !e.important} : e));
+    };
+
+    const handleComposeSubmit = (email: Partial<Email>) => {
+        onSendEmail(email);
+        setIsComposing(false);
+    }
+
+    if (isMobile) {
+        if (mobileView === 'mail') {
+            return (
+                <div className="bg-white">
+                    <ul>
+                        {mailboxOrder.map((key) => {
+                             const value = currentMailboxes[key];
+                             if (!value) return null;
+                             return (
+                                <li key={key}>
+                                    <button onClick={() => navigateMobile!(`mail-${key}`)} className="w-full flex justify-between items-center p-4 border-b">
+                                        <div className="flex items-center">
+                                            <value.icon size={20} className="mr-3 text-gray-600" />
+                                            <span>{value.label}</span>
+                                        </div>
+                                        {value.count > 0 && <span className="bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-full">{value.count}</span>}
+                                    </button>
+                                </li>
+                             )
+                        })}
+                    </ul>
+                </div>
+            );
+        }
+        const currentMailbox = mobileView?.split('-')[1] as keyof typeof mailboxes;
+        return (
+            <div>
+                {emails.filter(e => e.mailbox === currentMailbox).map(email => (
+                    <div key={email.id} className={`p-4 border-b flex ${email.unread ? 'bg-blue-50' : 'bg-white'}`}>
+                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 shrink-0" style={{visibility: email.unread ? 'visible': 'hidden'}}></div>
+                        <div className="flex-grow">
+                            <div className="flex justify-between items-center">
+                                <span className={`font-semibold ${email.unread ? 'text-gray-800' : 'text-gray-500'}`}>{email.from}</span>
+                                <span className="text-xs text-gray-400">{email.date.split(' ')[0]}</span>
+                            </div>
+                            <p className={`text-sm ${email.unread ? 'text-gray-700' : 'text-gray-500'} truncate`}>{email.subject}</p>
+                        </div>
+                        <button onClick={() => toggleImportance(email.id)}>
+                            <Star size={20} className={`ml-2 ${email.important ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
+                        </button>
+                    </div>
+                ))}
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex h-full">
+             {isComposing && <ComposeMailModal onClose={() => setIsComposing(false)} onSubmit={handleComposeSubmit} />}
+            <div className="w-72 border-r bg-white p-4 flex flex-col">
+                <h2 className="text-xl font-bold mb-4">메일</h2>
+                <div className="space-y-1">
+                    <button onClick={() => setIsComposing(true)} className="w-full bg-blue-600 text-white rounded-md py-2 text-sm font-semibold">메일쓰기</button>
+                    <button className="w-full bg-gray-200 text-gray-700 rounded-md py-2 text-sm font-semibold">내게쓰기</button>
+                </div>
+                <div className="mt-6 flex-grow">
+                    <ul className="space-y-1">
+                        {mailboxOrder.map(key => {
+                            const value = currentMailboxes[key];
+                            if (!value) return null;
+                            return (
+                                <li key={key}>
+                                    <button onClick={() => {setActiveMailbox(key); setCurrentPage(1); setSelectedEmails(new Set());}} className={`w-full text-left p-2 rounded-md text-sm flex justify-between items-center ${activeMailbox === key ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}>
+                                        <div className="flex items-center">
+                                            <value.icon size={16} className="mr-2" /> {value.label}
+                                        </div>
+                                        {value.count > 0 && <span className="text-xs bg-red-200 text-red-800 px-1.5 py-0.5 rounded-full">{value.count}</span>}
+                                    </button>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
+            </div>
+            <div className="flex-1 flex flex-col">
+                <div className="p-4 border-b bg-white">
+                    <h2 className="text-2xl font-bold">
+                        {currentMailboxes[activeMailbox].label}
+                    </h2>
+                    <div className="flex justify-between items-center mt-4">
+                        <div className="flex items-center space-x-2">
+                            {activeMailbox === 'trash' || activeMailbox === 'spam' ? (
+                                <>
+                                    <button onClick={() => moveSelectedEmails('inbox')} className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-100 disabled:opacity-50" disabled={selectedEmails.size === 0}>복원</button>
+                                    <button onClick={() => deleteSelectedEmailsPermanently()} className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-100 bg-red-50 text-red-700 disabled:opacity-50" disabled={selectedEmails.size === 0}>완전 삭제</button>
+                                </>
+                            ) : (
+                                <>
+                                    <button onClick={() => moveSelectedEmails('trash')} className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-100 disabled:opacity-50" disabled={selectedEmails.size === 0}>삭제</button>
+                                    <button onClick={() => moveSelectedEmails('spam')} className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-100 disabled:opacity-50" disabled={selectedEmails.size === 0}>스팸</button>
+                                    <button onClick={() => moveSelectedEmails('archive')} className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-100 disabled:opacity-50" disabled={selectedEmails.size === 0}>내게쓴메일함으로 이동</button>
+                                </>
+                            )}
+                             <button className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-100">답장</button>
+                             <button className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-100">전달</button>
+                        </div>
+                         <div className="flex items-center border rounded-md">
+                            <input type="text" placeholder="메일 검색" className="px-2 py-1.5 text-sm outline-none" />
+                            <button className="p-1.5 border-l hover:bg-gray-100"><Search size={16} /></button>
+                         </div>
+                    </div>
+                </div>
+                <div className="flex-1 overflow-x-auto">
+                    <table className="min-w-full text-sm text-left bg-white">
+                        <thead className="border-b bg-gray-50 text-gray-500">
+                            <tr>
+                                <th className="p-3 w-12"><input type="checkbox" onChange={handleSelectAll} checked={selectedEmails.size > 0 && selectedEmails.size === paginatedEmails.length} /></th>
+                                <th className="p-3 w-12"></th>
+                                <th className="p-3 w-48">보낸사람/받는사람</th>
+                                <th className="p-3">제목</th>
+                                <th className="p-3 w-48">날짜</th>
+                                <th className="p-3 w-24">크기</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {paginatedEmails.map(email => (
+                                <tr key={email.id} className={`border-b hover:bg-gray-50 ${email.unread ? 'font-bold text-gray-800' : 'text-gray-600'}`}>
+                                    <td className="p-3"><input type="checkbox" checked={selectedEmails.has(email.id)} onChange={() => handleSelectOne(email.id)} /></td>
+                                    <td className="p-3">
+                                      <button onClick={() => toggleImportance(email.id)}>
+                                        <Star size={16} className={email.important ? 'text-yellow-400 fill-current' : 'text-gray-300 hover:text-yellow-400'}/>
+                                      </button>
+                                      {email.hasAttachment && <Paperclip size={16} className="ml-1 text-gray-400" />}
+                                    </td>
+                                    <td className="p-3">{activeMailbox === 'sent' ? email.to : email.from}</td>
+                                    <td className="p-3">{email.subject}</td>
+                                    <td className="p-3 text-gray-500 font-normal">{email.date}</td>
+                                    <td className="p-3 text-gray-500 font-normal">{email.size}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                {totalPages > 1 && (
+                    <div className="p-4 border-t bg-white flex justify-center items-center space-x-2">
+                        <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50"><ChevronsLeft size={16} /></button>
+                        <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50"><ChevronLeft size={16} /></button>
+                        {[...Array(totalPages)].map((_, i) => (
+                          <button key={i} onClick={() => setCurrentPage(i+1)} className={`px-3 py-1 rounded-md ${currentPage === i+1 ? 'bg-blue-600 text-white' : 'hover:bg-gray-100'}`}>{i+1}</button>
+                        ))}
+                        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50"><ChevronRight size={16} /></button>
+                        <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50"><ChevronsRight size={16} /></button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function ComposeMailModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (email: Partial<Email>) => void; }) {
+    const [to, setTo] = useState('');
+    const [subject, setSubject] = useState('');
+    const [body, setBody] = useState('');
+
+    const handleSubmit = () => {
+        onSubmit({ to, subject, body });
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl">
+                <div className="flex justify-between items-center mb-4 border-b pb-3">
+                    <h2 className="text-xl font-bold">새 메일 작성</h2>
+                    <button onClick={onClose}><X size={24} /></button>
+                </div>
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">받는사람</label>
+                        <input type="email" value={to} onChange={e => setTo(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="email@example.com"/>
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700">제목</label>
+                        <input type="text" value={subject} onChange={e => setSubject(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">내용</label>
+                        <textarea value={body} onChange={e => setBody(e.target.value)} rows={10} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+                    </div>
+                </div>
+                <div className="mt-6 flex justify-end space-x-2">
+                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">취소</button>
+                    <button onClick={handleSubmit} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"><Send size={16} className="mr-2"/>보내기</button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+function ApprovalModal({ onClose, onSave }: { onClose: () => void, onSave: (approval: Approval) => void }) {
+    const [title, setTitle] = useState('');
+    const [content, setContent] = useState('');
+
+    const handleSave = () => {
+        if (!title) {
+            alert('제목을 입력해주세요.');
+            return;
+        }
+        onSave({ title, content } as Approval);
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg">
+                <h2 className="text-xl font-bold mb-4">새 결재 상신</h2>
+                <div className="space-y-4">
+                    <input type="text" placeholder="제목" value={title} onChange={e => setTitle(e.target.value)} className="w-full border rounded p-2"/>
+                    <textarea placeholder="내용" value={content} onChange={e => setContent(e.target.value)} rows={5} className="w-full border rounded p-2"></textarea>
+                </div>
+                <div className="mt-4 flex justify-end space-x-2">
+                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">취소</button>
+                    <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded">상신</button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function ApprovalView({approvals, onSave, currentUser}: {approvals: Approval[], onSave: (approval: Approval) => void, currentUser: UserProfile}) {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    return (
+        <div className="p-8">
+            {isModalOpen && <ApprovalModal onClose={() => setIsModalOpen(false)} onSave={onSave} />}
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold">전자결재</h1>
+                <button onClick={() => setIsModalOpen(true)} className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                    <PlusCircle size={20} className="mr-2" /> 새 결재 상신
                 </button>
             </div>
-            <div className="bg-white rounded-xl shadow-sm border overflow-x-auto">
-                <table className="w-full min-w-max">
-                    <thead>
-                        <tr className="border-b text-left text-sm text-gray-600">
-                            <th className="p-4 font-medium w-12"></th>
-                            <th className="p-4 font-medium w-32">보낸이</th>
-                            <th className="p-4 font-medium">제목</th>
-                            <th className="p-4 font-medium w-40">받은 시간</th>
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+                <table className="min-w-full">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600">문서 제목</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600">기안자</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600">상신일</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600">상태</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {messages.map(message => (
-                            <tr key={message.id} onClick={() => onMessageClick(message)} className={`border-b hover:bg-gray-50 cursor-pointer ${!message.read ? 'bg-blue-50' : ''}`}>
+                        {approvals.map(item => (
+                            <tr key={item.id} className="border-b">
+                                <td className="p-4 text-gray-800">{item.title}</td>
+                                <td className="p-4 text-gray-600">{item.requester}</td>
+                                <td className="p-4 text-gray-600">{item.date}</td>
                                 <td className="p-4">
-                                    <div className="flex items-center space-x-3">
-                                        {!message.read && <div className="w-2.5 h-2.5 bg-blue-500 rounded-full" title="읽지 않은 메일"></div>}
-                                        {message.important && <Star className="h-4 w-4 text-yellow-500 fill-current" title="중요 메일" />}
-                                    </div>
+                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${item.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : item.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                        {item.status === 'pending' ? '대기중' : item.status === 'approved' ? '승인' : '반려'}
+                                    </span>
                                 </td>
-                                <td className={`p-4 ${!message.read ? 'font-bold text-gray-800' : 'text-gray-600'}`}>{message.senderName}</td>
-                                <td className={`p-4 font-medium ${!message.read ? 'text-gray-900' : 'text-gray-700'}`}>{message.subject}</td>
-                                <td className={`p-4 text-sm ${!message.read ? 'text-gray-700' : 'text-gray-500'}`}>{new Date(message.date).toLocaleString('ko-KR')}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    )
+}
+function BoardPostModal({ post, onClose, onSave }: { post: Partial<Post> | null; onClose: () => void; onSave: (post: Post) => void; }) {
+    const [currentPost, setCurrentPost] = useState(post || { title: '', content: '' });
+
+    const handleSave = () => {
+        if (!currentPost.title) {
+            alert('제목을 입력해주세요.');
+            return;
+        }
+        onSave(currentPost as Post);
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl">
+                <h2 className="text-xl font-bold mb-4">{currentPost.id ? '게시물 수정' : '새 게시물 작성'}</h2>
+                <div className="space-y-4">
+                    <input type="text" placeholder="제목" value={currentPost.title} onChange={e => setCurrentPost({ ...currentPost, title: e.target.value })} className="w-full border rounded p-2" />
+                    <textarea placeholder="내용" value={currentPost.content} onChange={e => setCurrentPost({ ...currentPost, content: e.target.value })} rows={10} className="w-full border rounded p-2"></textarea>
+                </div>
+                <div className="mt-4 flex justify-end space-x-2">
+                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">취소</button>
+                    <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded">저장</button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function BoardView({ posts, onSave, onDelete, currentUser }: { posts: Post[]; onSave: (post: Post) => void; onDelete: (postId: number) => void; currentUser: UserProfile; }) {
+    const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingPost, setEditingPost] = useState<Partial<Post> | null>(null);
+
+    const handleEdit = (post: Post) => {
+        setEditingPost(post);
+        setIsModalOpen(true);
+    };
+
+    const handleCreate = () => {
+        setEditingPost(null);
+        setIsModalOpen(true);
+    };
+
+    const handleSave = (post: Post) => {
+        onSave(post);
+        setSelectedPost(p => p && p.id === post.id ? post : p); // Update selected post if it was edited
+    };
+
+    if (selectedPost) {
+        return (
+            <div className="p-8">
+                {isModalOpen && <BoardPostModal post={editingPost} onClose={() => setIsModalOpen(false)} onSave={handleSave} />}
+                <button onClick={() => setSelectedPost(null)} className="flex items-center text-blue-600 mb-4"><ChevronLeft size={20} /> 목록으로</button>
+                <div className="bg-white p-6 rounded-lg shadow">
+                    <div className="border-b pb-4 mb-4">
+                        <h1 className="text-3xl font-bold">{selectedPost.title}</h1>
+                        <div className="text-sm text-gray-500 mt-2 flex justify-between">
+                            <span>작성자: {selectedPost.author} | 작성일: {selectedPost.date} | 조회수: {selectedPost.views}</span>
+                            {selectedPost.author === currentUser.name && (
+                                <div className="space-x-2">
+                                    <button onClick={() => handleEdit(selectedPost)} className="text-blue-600 hover:underline">수정</button>
+                                    <button onClick={() => { onDelete(selectedPost.id); setSelectedPost(null); }} className="text-red-600 hover:underline">삭제</button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <p className="text-gray-700 whitespace-pre-wrap">{selectedPost.content}</p>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="p-8">
+            {isModalOpen && <BoardPostModal post={editingPost} onClose={() => setIsModalOpen(false)} onSave={handleSave} />}
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold">게시판</h1>
+                <button onClick={handleCreate} className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                    <PlusCircle size={20} className="mr-2" /> 글쓰기
+                </button>
+            </div>
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+                <table className="min-w-full">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600">제목</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600">작성자</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600">작성일</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600">조회수</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {posts.map(post => (
+                            <tr key={post.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedPost(post)}>
+                                <td className="p-4 text-gray-800">{post.title}</td>
+                                <td className="p-4 text-gray-600">{post.author}</td>
+                                <td className="p-4 text-gray-600">{post.date}</td>
+                                <td className="p-4 text-gray-600">{post.views}</td>
                             </tr>
                         ))}
                     </tbody>
@@ -330,772 +957,643 @@ const MailView: React.FC<{
             </div>
         </div>
     );
-};
+}
 
-const BoardView: React.FC<{
-  posts: Post[];
-  user: User;
-  handleCreatePost: (post: NewPost) => void;
-  onPostClick: (post: Post) => void;
-}> = ({ posts, user, handleCreatePost, onPostClick }) => {
-  const [showModal, setShowModal] = useState(false);
-  const [newPost, setNewPost] = useState<NewPost>({ title: '', content: '', category: 'general' });
+function ChatView({ messages, setMessages, currentUser, onUpdate, onDelete }: { messages: ChatMessage[]; setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>; currentUser: UserProfile; onUpdate: (id: number, text: string) => void; onDelete: (id: number) => void; }) {
+    const [newMessage, setNewMessage] = useState('');
+    const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(null);
+    const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const createPost = () => {
-    if (!newPost.title.trim() || !newPost.content.trim()) {
-      alert('제목과 내용을 모두 입력해주세요.');
-      return;
+    useEffect(() => {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth'});
+    }, [messages]);
+
+    const handleSendMessage = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (newMessage.trim() === '') return;
+        
+        const newMsg: ChatMessage = {
+            id: Date.now(),
+            user: { name: currentUser.name, team: currentUser.team, avatar: currentUser.avatar },
+            text: newMessage,
+            timestamp: `오후 ${new Date().getHours()}:${String(new Date().getMinutes()).padStart(2,'0')}`,
+            isCurrentUser: true,
+        };
+        setMessages([...messages, newMsg]);
+        setNewMessage('');
     }
-    handleCreatePost(newPost);
-    setNewPost({ title: '', content: '', category: 'general' });
-    setShowModal(false);
-    alert('게시글이 성공적으로 작성되었습니다.');
-  };
+    
+    const handleEditSave = () => {
+        if (editingMessage && editingMessage.text.trim()) {
+            onUpdate(editingMessage.id, editingMessage.text);
+        }
+        setEditingMessage(null);
+    }
+    const handleEditCancel = () => {
+        setEditingMessage(null);
+    }
 
-  return (
-    <div className="space-y-6 animate-fadeIn">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">사내 게시판</h2>
-        <button onClick={() => setShowModal(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-blue-700 transition-colors"><Plus className="h-4 w-4 mr-2" />글 작성</button>
-      </div>
-      <div className="bg-white rounded-xl shadow-sm border overflow-x-auto">
-        <table className="w-full min-w-max">
-          <thead>
-            <tr className="border-b text-left text-sm text-gray-600">
-              <th className="p-4 font-medium">제목</th><th className="p-4 font-medium">작성자</th><th className="p-4 font-medium">작성일</th><th className="p-4 font-medium">조회수</th>
-            </tr>
-          </thead>
-          <tbody>
-            {posts.map(post => (
-              <tr key={post.id} onClick={() => onPostClick(post)} className="border-b hover:bg-gray-50 cursor-pointer">
-                <td className="p-4 font-medium text-gray-900">{post.title}</td><td className="p-4 text-gray-600">{post.author}</td><td className="p-4 text-gray-600">{post.date}</td><td className="p-4 text-gray-600">{post.views}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-8 w-full max-w-2xl mx-4 animate-fadeIn">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-semibold">새 게시글 작성</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><XCircle className="h-6 w-6" /></button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">제목</label>
-                <input type="text" value={newPost.title} onChange={(e) => setNewPost({ ...newPost, title: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="게시글 제목을 입력하세요" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">내용</label>
-                <textarea value={newPost.content} onChange={(e) => setNewPost({ ...newPost, content: e.target.value })} rows={8} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="게시글 내용을 입력하세요" />
-              </div>
-            </div>
-            <div className="flex space-x-3 mt-6 justify-end">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">취소</button>
-              <button onClick={createPost} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">작성완료</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const EmployeesView: React.FC<{ 
-  employees: Employee[]; 
-  onNewEmployeeClick: () => void;
-  onEmployeeClick: (employee: Employee) => void;
-  onDeleteEmployee: (employeeId: number) => void;
-}> = ({ employees, onNewEmployeeClick, onEmployeeClick, onDeleteEmployee }) => (
-    <div className="space-y-6 animate-fadeIn">
-        <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-gray-900">사원 관리</h2>
-            <button onClick={onNewEmployeeClick} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-blue-700 transition-colors">
-                <Plus className="h-4 w-4 mr-2" />사원 등록
-            </button>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border overflow-x-auto">
-            <table className="w-full min-w-max">
-                <thead>
-                    <tr className="border-b text-left text-sm text-gray-600">
-                        <th className="p-4 font-medium">이름</th>
-                        <th className="p-4 font-medium">직책</th>
-                        <th className="p-4 font-medium">부서</th>
-                        <th className="p-4 font-medium">이메일</th>
-                        <th className="p-4 font-medium">상태</th>
-                        <th className="p-4 font-medium">액션</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {employees.map(employee => (
-                        <tr key={employee.id} className="border-b hover:bg-gray-50">
-                            <td className="p-4">
-                                <div className="flex items-center space-x-3">
-                                    <div className="w-9 h-9 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium text-sm">{employee.name[0]}</div>
-                                    <span onClick={() => onEmployeeClick(employee)} className="font-medium text-gray-900 cursor-pointer hover:underline hover:text-blue-600">
-                                      {employee.name}
-                                    </span>
+    return (
+        <div className="p-4 h-full flex flex-col">
+            <h1 className="text-2xl font-bold mb-4 border-b pb-4">사내 채팅</h1>
+            <div className="flex-grow overflow-y-auto space-y-4 pr-4">
+                {messages.map(msg => (
+                    <div key={msg.id} className={`flex items-end gap-3 ${msg.isCurrentUser ? 'flex-row-reverse' : ''}`}>
+                        {!msg.isCurrentUser && (
+                            <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center font-bold shrink-0">{msg.user.avatar}</div>
+                        )}
+                        <div className={`group relative max-w-xs md:max-w-md p-3 rounded-lg ${msg.isCurrentUser ? 'bg-blue-500 text-white rounded-br-none' : 'bg-white border rounded-bl-none'}`}>
+                            {editingMessage?.id === msg.id ? (
+                                <div>
+                                    <input value={editingMessage.text} onChange={e => setEditingMessage({...editingMessage, text: e.target.value})} className="text-sm p-1 rounded bg-white text-black"/>
+                                    <div className="text-right mt-1 space-x-2">
+                                        <button onClick={handleEditCancel} className="text-xs text-gray-300">취소</button>
+                                        <button onClick={handleEditSave} className="text-xs text-blue-200">저장</button>
+                                    </div>
                                 </div>
-                            </td>
-                            <td className="p-4 text-gray-600">{employee.position}</td>
-                            <td className="p-4 text-gray-600">{employee.department}</td>
-                            <td className="p-4 text-gray-600">{employee.email}</td>
-                            <td className="p-4">
-                                <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">{employee.status}</span>
-                            </td>
-                            <td className="p-4">
-                                <button 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onDeleteEmployee(employee.id);
-                                  }}
-                                  className="text-red-500 hover:text-red-700 font-medium px-3 py-1 rounded-md hover:bg-red-50 transition-colors"
-                                >
-                                  삭제
-                                </button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    </div>
-);
-
-const DocumentsView: React.FC<{ documents: Document[] }> = ({ documents }) => (
-    <div className="space-y-6 animate-fadeIn">
-        <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-gray-900">문서 관리</h2>
-            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-blue-700 transition-colors"><Plus className="h-4 w-4 mr-2" />문서 업로드</button>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border p-6">
-            <div className="space-y-3">
-                {documents.map(doc => (
-                    <div key={doc.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center space-x-4">
-                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                <FileText className="h-5 w-5 text-blue-600" />
-                            </div>
-                            <div>
-                                <p className="font-medium text-gray-900">{doc.title}</p>
-                                <p className="text-sm text-gray-600">{doc.author} &bull; {doc.date} &bull; {doc.size}</p>
-                            </div>
+                            ) : (
+                                <>
+                                    <p className="text-sm">{msg.text}</p>
+                                    <span className={`text-xs mt-1 block ${msg.isCurrentUser ? 'text-blue-200' : 'text-gray-400'} text-right`}>{msg.timestamp}</span>
+                                </>
+                            )}
+                             {msg.isCurrentUser && editingMessage?.id !== msg.id && (
+                                <div className="absolute top-0 right-0 -translate-y-2 translate-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => setEditingMessage(msg)} className="p-1 bg-white rounded-full shadow"><Edit size={12} className="text-gray-600"/></button>
+                                    <button onClick={() => onDelete(msg.id)} className="p-1 bg-white rounded-full shadow ml-1"><Trash2 size={12} className="text-red-600"/></button>
+                                </div>
+                            )}
                         </div>
-                        <button className="p-2 text-gray-400 hover:text-gray-600"><Eye className="h-5 w-5" /></button>
                     </div>
                 ))}
+                <div ref={chatEndRef} />
+            </div>
+            <form onSubmit={handleSendMessage} className="mt-4 flex border-t pt-4">
+                <input 
+                    type="text" 
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="메시지를 입력하세요..." 
+                    className="flex-grow border rounded-l-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button type="submit" className="bg-blue-500 text-white px-4 rounded-r-md hover:bg-blue-600">
+                    <Send size={20} />
+                </button>
+            </form>
+        </div>
+    );
+}
+
+function ScheduleModal({ event, onClose, onSave, onDelete }: { event: Partial<ScheduleEvent>; onClose: () => void; onSave: (event: Partial<ScheduleEvent>) => void; onDelete: (id: number) => void; }) {
+    const [currentEvent, setCurrentEvent] = useState(event);
+
+    const handleSave = () => {
+        if (!currentEvent.title) {
+            alert('일정 제목을 입력해주세요.');
+            return;
+        }
+        onSave(currentEvent);
+    }
+    
+    const handleDelete = () => {
+        if (currentEvent.id && window.confirm('이 일정을 삭제하시겠습니까?')) {
+            onDelete(currentEvent.id);
+        }
+    }
+    
+    const toLocalISOString = (date: Date) => {
+        const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+        const localISOTime = (new Date(date.getTime() - tzoffset)).toISOString().slice(0, 16);
+        return localISOTime;
+    }
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold">{currentEvent.id ? '일정 수정' : '일정 추가'}</h2>
+                    <button onClick={onClose}><X size={24} /></button>
+                </div>
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">제목</label>
+                        <input type="text" value={currentEvent.title || ''} onChange={e => setCurrentEvent({...currentEvent, title: e.target.value})} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">종류</label>
+                        <select value={currentEvent.type || '업무'} onChange={e => setCurrentEvent({...currentEvent, type: e.target.value as ScheduleEventType})} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            <option>업무</option>
+                            <option>부서</option>
+                            <option>회사</option>
+                        </select>
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700">시작</label>
+                        <input type="datetime-local" value={currentEvent.start ? toLocalISOString(currentEvent.start) : ''} onChange={e => setCurrentEvent({...currentEvent, start: new Date(e.target.value)})} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700">종료</label>
+                        <input type="datetime-local" value={currentEvent.end ? toLocalISOString(currentEvent.end) : ''} onChange={e => setCurrentEvent({...currentEvent, end: new Date(e.target.value)})} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
+                    </div>
+                </div>
+                <div className="mt-6 flex justify-between">
+                    <div>
+                        {currentEvent.id && <button onClick={handleDelete} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">삭제</button>}
+                    </div>
+                    <div className="space-x-2">
+                         <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">취소</button>
+                         <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">저장</button>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-);
+    )
+}
 
-const CalendarView: React.FC<{ events: Event[] }> = ({ events }) => {
-    const today = new Date('2025-09-14'); // Fixed date for consistent display
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+function ScheduleView({ events, setEvents, isMobile, currentUser }: { events: ScheduleEvent[], setEvents: React.Dispatch<React.SetStateAction<ScheduleEvent[]>>, isMobile?: boolean, currentUser: UserProfile }) {
+    const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
+    const [currentDate, setCurrentDate] = useState(new Date());
+    const [visibleCalendars, setVisibleCalendars] = useState({ '업무': true, '부서': true, '회사': true });
+    const [modalState, setModalState] = useState<{ isOpen: boolean, event: Partial<ScheduleEvent> | null }>({ isOpen: false, event: null });
 
-    const generateCalendarDays = () => {
-        return Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
-            const isToday = day === today.getDate();
-            const dayEvents = events.filter(e => new Date(e.date).getDate() === day && new Date(e.date).getMonth() === currentMonth);
-            return (
-                <div key={day} className={`aspect-square p-2 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors ${isToday ? 'bg-blue-600 text-white font-bold' : 'bg-white'}`}>
-                    <div className="text-sm">{day}</div>
-                    {dayEvents.length > 0 && (
-                        <div className="mt-1 space-y-1">
-                            {dayEvents.slice(0, 2).map(event => (
-                                <div key={event.id} className={`text-xs ${isToday ? 'bg-white text-blue-800' : 'bg-blue-100 text-blue-800'} rounded px-1 py-0.5 truncate`}>{event.title}</div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            );
-        });
+    const filteredEvents = useMemo(() => {
+        return events.filter(event => visibleCalendars[event.type]);
+    }, [events, visibleCalendars]);
+
+    const handleOpenModal = (event: Partial<ScheduleEvent> | null) => {
+        setModalState({ isOpen: true, event });
+    }
+
+    const handleCloseModal = () => {
+        setModalState({ isOpen: false, event: null });
+    }
+
+    const handleSaveEvent = (eventData: Partial<ScheduleEvent>) => {
+        if (eventData.id) { // Update existing
+            setEvents(events.map(e => e.id === eventData.id ? { ...e, ...eventData, color: getScheduleColor(eventData.type!) } as ScheduleEvent : e));
+        } else { // Create new
+            const newEvent: ScheduleEvent = {
+                id: Date.now(),
+                title: eventData.title || '새 일정',
+                start: eventData.start || new Date(),
+                end: eventData.end || new Date(),
+                type: eventData.type || '업무',
+                owner: currentUser.name,
+                color: getScheduleColor(eventData.type || '업무'),
+            };
+            setEvents([...events, newEvent]);
+        }
+        handleCloseModal();
+    }
+
+    const handleDeleteEvent = (id: number) => {
+        setEvents(events.filter(e => e.id !== id));
+        handleCloseModal();
+    }
+
+    const handlePrev = () => {
+        if (viewMode === 'month') setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+        else if (viewMode === 'week') setCurrentDate(d => new Date(d.setDate(d.getDate() - 7)));
+        else setCurrentDate(d => new Date(d.setDate(d.getDate() - 1)));
     };
-    
-    return (
-        <div className="space-y-6 animate-fadeIn">
-            <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900">일정 관리</h2>
-                <button className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-blue-700 transition-colors"><Plus className="h-4 w-4 mr-2" />일정 추가</button>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border p-6">
-                    <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-semibold">{currentYear}년 {currentMonth + 1}월</h3></div>
-                    <div className="grid grid-cols-7 gap-2 mb-2 text-center text-sm text-gray-600 font-medium">
-                        {['일', '월', '화', '수', '목', '금', '토'].map(d => <div key={d}>{d}</div>)}
+    const handleNext = () => {
+        if (viewMode === 'month') setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+        else if (viewMode === 'week') setCurrentDate(d => new Date(d.setDate(d.getDate() + 7)));
+        else setCurrentDate(d => new Date(d.setDate(d.getDate() + 1)));
+    };
+    const handleToday = () => setCurrentDate(new Date());
+
+    const CalendarHeader = () => {
+        let title = '';
+        if (viewMode === 'month') {
+            title = `${currentDate.getFullYear()}년 ${currentDate.getMonth() + 1}월`;
+        } else if (viewMode === 'week') {
+            const startOfWeek = new Date(currentDate);
+            startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(endOfWeek.getDate() + 6);
+            title = `${startOfWeek.getFullYear()}년 ${startOfWeek.getMonth() + 1}월 ${startOfWeek.getDate()}일 - ${endOfWeek.getDate()}일`;
+        } else {
+             title = `${currentDate.getFullYear()}년 ${currentDate.getMonth() + 1}월 ${currentDate.getDate()}일`;
+        }
+        const legend = [
+            { label: '업무 일정', color: 'blue' },
+            { label: '부서 일정', color: 'green' },
+            { label: '회사 일정', color: 'purple' },
+            { label: '회사 공휴일', color: 'red' },
+        ];
+        return (
+            <div className="p-4 bg-white border-b">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center space-x-2">
+                        <button onClick={handlePrev} className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-100">이전</button>
+                        <button onClick={handleNext} className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-100">다음</button>
+                        <button onClick={handleToday} className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-100 bg-red-50 text-red-700">오늘</button>
                     </div>
-                    <div className="grid grid-cols-7 gap-2">{generateCalendarDays()}</div>
+                    <h2 className="text-xl font-bold text-center">{title}</h2>
+                    <div className="flex items-center space-x-2">
+                         <div className="flex items-center rounded-md border">
+                            <button onClick={() => setViewMode('month')} className={`px-3 py-1.5 text-sm ${viewMode === 'month' ? 'bg-red-600 text-white' : 'hover:bg-gray-100'}`}>월간</button>
+                            <button onClick={() => setViewMode('week')} className={`px-3 py-1.5 text-sm border-l ${viewMode === 'week' ? 'bg-red-600 text-white' : 'hover:bg-gray-100'}`}>주간</button>
+                            <button onClick={() => setViewMode('day')} className={`px-3 py-1.5 text-sm border-l ${viewMode === 'day' ? 'bg-red-600 text-white' : 'hover:bg-gray-100'}`}>일간</button>
+                        </div>
+                    </div>
                 </div>
-                <div className="bg-white rounded-xl shadow-sm border p-6">
-                    <h3 className="text-lg font-semibold mb-4">오늘의 일정 ({today.toLocaleDateString('ko-KR')})</h3>
-                    <div className="space-y-3">
-                        {events.filter(e => e.date === '2025-09-14').map(event => (
-                            <div key={event.id} className="flex items-start space-x-3 p-3 bg-blue-50 rounded-lg">
-                                <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5"></div>
-                                <div className="flex-1">
-                                    <p className="font-medium text-gray-900">{event.title}</p>
-                                    <p className="text-sm text-gray-600">{event.startTime} - {event.endTime} &bull; {event.location}</p>
-                                </div>
-                            </div>
+                 <div className="pt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+                    {legend.map(item => (
+                        <div key={item.label} className="flex items-center">
+                            <span className={`w-3 h-3 rounded-full mr-1.5 bg-${item.color}-500`}></span>
+                            <span>{item.label}</span>
+                        </div>
+                    ))}
+                     <div className="flex-grow flex items-center space-x-4 text-sm justify-end">
+                        {Object.keys(visibleCalendars).map((cal) => (
+                           <label key={cal} className="flex items-center space-x-2 cursor-pointer">
+                             <input type="checkbox" checked={visibleCalendars[cal]} onChange={() => setVisibleCalendars(prev => ({...prev, [cal]: !prev[cal]}))} className="form-checkbox h-4 w-4 rounded text-blue-600"/>
+                             <span>{cal}</span>
+                           </label>
                         ))}
                     </div>
                 </div>
             </div>
-        </div>
-    );
-};
+        )
+    };
+    
+    const renderView = () => {
+        switch (viewMode) {
+            case 'month': return <MonthView date={currentDate} events={filteredEvents} onDayClick={(date) => handleOpenModal({ start: date, end: date })} onEventClick={(event) => handleOpenModal(event)} />;
+            case 'week': return <WeekView date={currentDate} events={filteredEvents} onSlotClick={(date) => handleOpenModal({ start: date, end: new Date(date.getTime() + 60*60*1000) })} onEventClick={(event) => handleOpenModal(event)} />;
+            case 'day': return <DayView date={currentDate} events={filteredEvents} onSlotClick={(date) => handleOpenModal({ start: date, end: new Date(date.getTime() + 60*60*1000) })} onEventClick={(event) => handleOpenModal(event)} />;
+            default: return null;
+        }
+    };
+    
+    return <div className="h-full flex flex-col bg-white">
+        <CalendarHeader />
+        {renderView()}
+        {modalState.isOpen && <ScheduleModal event={modalState.event!} onClose={handleCloseModal} onSave={handleSaveEvent} onDelete={handleDeleteEvent} />}
+    </div>;
+}
 
-const ApprovalDetailModal: React.FC<{ approval: Approval; onClose: () => void; }> = ({ approval, onClose }) => (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fadeIn">
-    <div className="bg-white rounded-xl p-8 w-full max-w-2xl mx-4 transform transition-all">
-      <div className="flex justify-between items-center mb-6 border-b pb-4">
-        <h3 className="text-xl font-semibold text-gray-900">결재 문서 상세</h3>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><XCircle className="h-6 w-6" /></button>
-      </div>
-      <div className="space-y-4">
-        <div>
-          <label className="text-sm font-medium text-gray-500">제목</label>
-          <p className="mt-1 text-lg font-semibold text-gray-800">{approval.title}</p>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div><label className="text-sm font-medium text-gray-500">신청자</label><p className="mt-1 text-gray-800">{approval.requester}</p></div>
-          <div><label className="text-sm font-medium text-gray-500">신청일</label><p className="mt-1 text-gray-800">{approval.date}</p></div>
-          <div><label className="text-sm font-medium text-gray-500">금액</label><p className="mt-1 text-gray-800">{approval.amount}</p></div>
-          <div>
-            <label className="text-sm font-medium text-gray-500">상태</label>
-            <p className="mt-1">
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${ approval.status === 'approved' ? 'bg-green-100 text-green-800' : approval.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800' }`}>
-                  {approval.status === 'approved' ? '승인' : approval.status === 'pending' ? '대기' : '반려'}
-              </span>
-            </p>
-          </div>
-        </div>
-        <div>
-          <label className="text-sm font-medium text-gray-500">내용</label>
-          <div className="mt-1 p-3 bg-gray-50 rounded-lg border min-h-[100px] max-h-48 overflow-y-auto">
-            <p className="text-gray-800 whitespace-pre-wrap">{approval.content}</p>
-          </div>
-        </div>
-      </div>
-      <div className="flex justify-end mt-6"><button onClick={onClose} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">닫기</button></div>
-    </div>
-  </div>
-);
+const MonthView = ({ date, events, onDayClick, onEventClick }: { date: Date, events: ScheduleEvent[], onDayClick: (date: Date) => void, onEventClick: (event: ScheduleEvent) => void }) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const days = Array.from({ length: firstDay + daysInMonth }, (_, i) => {
+        if (i < firstDay) return null;
+        return i - firstDay + 1;
+    });
 
-const NewApprovalModal: React.FC<{ onClose: () => void; onSubmit: (data: { title: string; amount: string; content: string }) => void; }> = ({ onClose, onSubmit }) => {
-  const [title, setTitle] = useState('');
-  const [amount, setAmount] = useState('');
-  const [content, setContent] = useState('');
+    const isSameDay = (d1: Date, d2: Date) => d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
+    
+    return (
+        <div className="flex-grow grid grid-cols-7 border-t">
+            {['일', '월', '화', '수', '목', '금', '토'].map(day => (
+                <div key={day} className="text-center font-bold p-2 border-b text-sm">{day}</div>
+            ))}
+            {days.map((day, index) => {
+                 const dayDate = day ? new Date(year, month, day) : null;
+                 const isSunday = index % 7 === 0;
+                 const isSaturday = index % 7 === 6;
+                 const isToday = dayDate ? isSameDay(dayDate, new Date()) : false;
 
-  const handleSubmit = () => {
-    if (!title.trim() || !content.trim()) {
-      alert('제목과 내용을 모두 입력해주세요.');
-      return;
-    }
-    onSubmit({ title, amount: amount || '-', content });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fadeIn">
-      <div className="bg-white rounded-xl p-8 w-full max-w-2xl mx-4 transform transition-all">
-        <div className="flex justify-between items-center mb-6 border-b pb-4">
-          <h3 className="text-xl font-semibold">새 결재 요청</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><XCircle className="h-6 w-6" /></button>
-        </div>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">제목</label>
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="결재 제목을 입력하세요" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">금액 (선택)</label>
-            <input type="text" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="예: 500만원" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">내용</label>
-            <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={8} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="결재 요청 내용을 상세히 입력하세요" />
-          </div>
-        </div>
-        <div className="flex space-x-3 mt-6 justify-end">
-          <button onClick={onClose} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">취소</button>
-          <button onClick={handleSubmit} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">요청</button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const NewMailModal: React.FC<{
-  onClose: () => void;
-  onSubmit: (data: { recipient: string; subject: string; content: string }) => void;
-  employees: Employee[];
-  currentUser: User;
-}> = ({ onClose, onSubmit, employees, currentUser }) => {
-  const possibleRecipients = employees.filter(e => e.id !== currentUser.id);
-  const [recipient, setRecipient] = useState(possibleRecipients[0]?.name || '');
-  const [subject, setSubject] = useState('');
-  const [content, setContent] = useState('');
-
-  const handleSubmit = () => {
-    if (!recipient || !subject.trim() || !content.trim()) {
-      alert('받는 사람, 제목, 내용을 모두 입력해주세요.');
-      return;
-    }
-    onSubmit({ recipient, subject, content });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fadeIn">
-      <div className="bg-white rounded-xl p-8 w-full max-w-2xl mx-4 transform transition-all">
-        <div className="flex justify-between items-center mb-6 border-b pb-4">
-          <h3 className="text-xl font-semibold">새 메일 작성</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><XCircle className="h-6 w-6" /></button>
-        </div>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">받는 사람</label>
-            <select value={recipient} onChange={(e) => setRecipient(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white">
-              {possibleRecipients.map(e => <option key={e.id} value={e.name}>{e.name} ({e.department})</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">제목</label>
-            <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="메일 제목을 입력하세요" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">내용</label>
-            <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={8} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="메일 내용을 입력하세요" />
-          </div>
-        </div>
-        <div className="flex space-x-3 mt-6 justify-end">
-          <button onClick={onClose} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">취소</button>
-          <button onClick={handleSubmit} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">보내기</button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const MailDetailModal: React.FC<{ message: Message; onClose: () => void; }> = ({ message, onClose }) => (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fadeIn">
-    <div className="bg-white rounded-xl p-8 w-full max-w-3xl mx-4 transform transition-all">
-      <div className="flex justify-between items-center mb-6 border-b pb-4">
-        <h3 className="text-xl font-semibold text-gray-900 truncate">{message.subject}</h3>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><XCircle className="h-6 w-6" /></button>
-      </div>
-      <div className="space-y-4">
-        <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
-            <div>
-                <label className="text-sm font-medium text-gray-500">보낸 사람</label>
-                <p className="text-gray-800">{message.senderName}</p>
-            </div>
-            <div>
-                <label className="text-sm font-medium text-gray-500">받은 시간</label>
-                <p className="text-gray-800">{new Date(message.date).toLocaleString('ko-KR')}</p>
-            </div>
-        </div>
-        <div>
-          <label className="text-sm font-medium text-gray-500">내용</label>
-          <div className="mt-1 p-4 bg-gray-50 rounded-lg border min-h-[200px] max-h-80 overflow-y-auto">
-            <p className="text-gray-800 whitespace-pre-wrap">{message.content}</p>
-          </div>
-        </div>
-      </div>
-      <div className="flex justify-end mt-6">
-          <button onClick={onClose} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">닫기</button>
-      </div>
-    </div>
-  </div>
-);
-
-const PostDetailModal: React.FC<{ post: Post; onClose: () => void; }> = ({ post, onClose }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fadeIn">
-        <div className="bg-white rounded-xl p-8 w-full max-w-3xl mx-4 transform transition-all">
-            <div className="flex justify-between items-center mb-6 border-b pb-4">
-                <h3 className="text-xl font-semibold text-gray-900">{post.title}</h3>
-                <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><XCircle className="h-6 w-6" /></button>
-            </div>
-            <div className="space-y-4">
-                <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg text-sm">
-                    <div><span className="font-medium text-gray-500">작성자: </span><span className="text-gray-800">{post.author}</span></div>
-                    <div><span className="font-medium text-gray-500">작성일: </span><span className="text-gray-800">{post.date}</span></div>
-                    <div><span className="font-medium text-gray-500">조회수: </span><span className="text-gray-800">{post.views}</span></div>
-                </div>
-                <div>
-                    <label className="text-sm font-medium text-gray-500">내용</label>
-                    <div className="mt-1 p-4 bg-gray-50 rounded-lg border min-h-[200px] max-h-80 overflow-y-auto">
-                        <p className="text-gray-800 whitespace-pre-wrap">{post.content}</p>
+                return (
+                <div key={index} className={`border-r border-b h-24 md:h-36 p-1 text-xs md:text-sm overflow-y-auto relative cursor-pointer
+                    ${isSunday ? 'bg-red-50' : ''} ${isSaturday ? 'bg-blue-50' : ''}`}
+                    onClick={() => dayDate && onDayClick(dayDate)}
+                >
+                    {day && <span className={`p-1 rounded-full ${isToday ? 'bg-red-500 text-white' : ''}`}>{day}</span>}
+                    <div className="mt-1 space-y-1">
+                        {dayDate && events.filter(e => isSameDay(e.start, dayDate)).map(e => (
+                            <div key={e.id} onClick={(ev) => { ev.stopPropagation(); onEventClick(e); }} className={`p-1 rounded text-white bg-${e.color}-500 text-[10px] md:text-xs truncate`}>{e.title}</div>
+                        ))}
                     </div>
                 </div>
-            </div>
-            <div className="flex justify-end mt-6">
-                <button onClick={onClose} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">닫기</button>
-            </div>
+            )})}
         </div>
-    </div>
-);
-
-const NewEmployeeModal: React.FC<{
-  onClose: () => void;
-  onSubmit: (data: { name: string; position: string; department: string; email: string }) => void;
-}> = ({ onClose, onSubmit }) => {
-  const [name, setName] = useState('');
-  const [position, setPosition] = useState('');
-  const [department, setDepartment] = useState('');
-  const [email, setEmail] = useState('');
-
-  const handleSubmit = () => {
-    if (!name.trim() || !position.trim() || !department.trim() || !email.trim()) {
-      alert('모든 필드를 입력해주세요.');
-      return;
-    }
-    if (!email.includes('@')) {
-      alert('유효한 이메일 주소를 입력해주세요.');
-      return;
-    }
-    onSubmit({ name, position, department, email });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fadeIn">
-      <div className="bg-white rounded-xl p-8 w-full max-w-2xl mx-4 transform transition-all">
-        <div className="flex justify-between items-center mb-6 border-b pb-4">
-          <h3 className="text-xl font-semibold">새 사원 등록</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><XCircle className="h-6 w-6" /></button>
-        </div>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">이름</label>
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="사원 이름을 입력하세요" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">직책</label>
-            <input type="text" value={position} onChange={(e) => setPosition(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="예: 교육팀장, 상담사" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">부서</label>
-            <input type="text" value={department} onChange={(e) => setDepartment(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="예: 청소년교육팀, 상담팀" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">이메일</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="예: name@sjhope.org" />
-          </div>
-        </div>
-        <div className="flex space-x-3 mt-6 justify-end">
-          <button onClick={onClose} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">취소</button>
-          <button onClick={handleSubmit} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">등록</button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const EditEmployeeModal: React.FC<{
-  employee: Employee;
-  onClose: () => void;
-  onUpdate: (data: Employee) => void;
-}> = ({ employee, onClose, onUpdate }) => {
-  const [name, setName] = useState(employee.name);
-  const [position, setPosition] = useState(employee.position);
-  const [department, setDepartment] = useState(employee.department);
-  const [email, setEmail] = useState(employee.email);
-
-  useEffect(() => {
-    setName(employee.name);
-    setPosition(employee.position);
-    setDepartment(employee.department);
-    setEmail(employee.email);
-  }, [employee]);
-
-  const handleUpdate = () => {
-    if (!name.trim() || !position.trim() || !department.trim() || !email.trim()) {
-      alert('모든 필드를 입력해주세요.'); return;
-    }
-    if (!email.includes('@')) {
-      alert('유효한 이메일 주소를 입력해주세요.'); return;
-    }
-    onUpdate({ ...employee, name, position, department, email });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fadeIn">
-      <div className="bg-white rounded-xl p-8 w-full max-w-2xl mx-4 transform transition-all">
-        <div className="flex justify-between items-center mb-6 border-b pb-4">
-          <h3 className="text-xl font-semibold">사원 정보 수정</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><XCircle className="h-6 w-6" /></button>
-        </div>
-        <div className="space-y-4">
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">이름</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">직책</label><input type="text" value={position} onChange={(e) => setPosition(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">부서</label><input type="text" value={department} onChange={(e) => setDepartment(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">이메일</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" /></div>
-        </div>
-        <div className="flex justify-end mt-8">
-          <div className="flex space-x-3">
-            <button onClick={onClose} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">취소</button>
-            <button onClick={handleUpdate} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">수정하기</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-
-// --- MAIN APP COMPONENT ---
-
-const ERPSystem: React.FC = () => {
-  const [activeMenu, setActiveMenu] = useState('dashboard');
-  const [user] = useState<User>({ id: 5, name: '김민수', position: '교육팀장', department: '청소년교육팀' });
-  
-  const [approvals, setApprovals] = useState<Approval[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [lastSync, setLastSync] = useState<Date | null>(null);
-
-  const [showNewApprovalModal, setShowNewApprovalModal] = useState(false);
-  const [selectedApproval, setSelectedApproval] = useState<Approval | null>(null);
-  const [showNewMailModal, setShowNewMailModal] = useState(false);
-  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  const [showNewEmployeeModal, setShowNewEmployeeModal] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-
-  useEffect(() => {
-    const initializeData = () => {
-      setIsLoading(true);
-      try {
-        const existingData = localStorage.getItem('erp_employees');
-        if (!existingData) {
-          Object.entries(SEED_DATA).forEach(([key, data]) => {
-            localStorage.setItem(`erp_${key}`, JSON.stringify(data));
-          });
-        }
-        setApprovals(JSON.parse(localStorage.getItem('erp_approvals') || '[]').sort((a: Approval, b: Approval) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-        setEmployees(JSON.parse(localStorage.getItem('erp_employees') || '[]'));
-        setDocuments(JSON.parse(localStorage.getItem('erp_documents') || '[]'));
-        setPosts(JSON.parse(localStorage.getItem('erp_posts') || '[]').sort((a: Post, b: Post) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-        setMessages(JSON.parse(localStorage.getItem('erp_messages') || '[]').sort((a: Message, b: Message) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-        setEvents(JSON.parse(localStorage.getItem('erp_events') || '[]'));
-        setLastSync(new Date());
-      } catch (error) {
-        console.error('Data initialization failed:', error);
-      } finally {
-        setTimeout(() => setIsLoading(false), 500);
-      }
-    };
-    initializeData();
-  }, []);
-  
-  const handleApprovalStatusChange = useCallback((approvalId: number, newStatus: ApprovalStatus) => {
-    const updated = approvals.map(a => a.id === approvalId ? { ...a, status: newStatus } : a);
-    setApprovals(updated);
-    localStorage.setItem('erp_approvals', JSON.stringify(updated));
-    alert(`결재가 ${newStatus === 'approved' ? '승인' : '반려'}되었습니다.`);
-  }, [approvals]);
-
-  const handleCreatePost = useCallback((newPost: NewPost) => {
-    const post: Post = {
-      id: Math.max(0, ...posts.map(p => p.id)) + 1, ...newPost, author: user.name, date: new Date().toISOString().split('T')[0], views: 0
-    };
-    const updated = [post, ...posts];
-    setPosts(updated);
-    localStorage.setItem('erp_posts', JSON.stringify(updated));
-  }, [posts, user.name]);
-  
-  const handleViewPost = useCallback((postToView: Post) => {
-    const updatedPosts = posts.map(p => 
-      p.id === postToView.id ? { ...p, views: p.views + 1 } : p
     );
-    setPosts(updatedPosts);
-    localStorage.setItem('erp_posts', JSON.stringify(updatedPosts));
-    // Set the selected post with the updated view count for the modal
-    setSelectedPost({ ...postToView, views: postToView.views + 1 });
-  }, [posts]);
+};
 
-  const handleMarkMessageAsRead = useCallback((messageId: number) => {
-    const updated = messages.map(m => m.id === messageId ? { ...m, read: true } : m);
-    setMessages(updated);
-    localStorage.setItem('erp_messages', JSON.stringify(updated));
-  }, [messages]);
+const WeekView = ({ date, events, onSlotClick, onEventClick }: { date: Date, events: ScheduleEvent[], onSlotClick: (date: Date) => void, onEventClick: (event: ScheduleEvent) => void }) => {
+    const startOfWeek = new Date(date);
+    startOfWeek.setDate(date.getDate() - date.getDay());
+    const days = Array.from({ length: 7 }, (_, i) => new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate() + i));
+    const hours = Array.from({ length: 12 }, (_, i) => 8 + i); // 8 AM to 7 PM
 
-  const handleViewMessage = (message: Message) => {
-      if (!message.read) {
-          handleMarkMessageAsRead(message.id);
-      }
-      setSelectedMessage(message);
-  };
-
-  const handleCreateApproval = useCallback((newApprovalData: { title: string; amount: string; content: string; }) => {
-    const newApproval: Approval = {
-        id: Math.max(0, ...approvals.map(a => a.id)) + 1,
-        ...newApprovalData,
-        requester: user.name,
-        date: new Date().toISOString().split('T')[0],
-        status: 'pending',
-    };
-    const updated = [newApproval, ...approvals];
-    setApprovals(updated);
-    localStorage.setItem('erp_approvals', JSON.stringify(updated));
-    setShowNewApprovalModal(false);
-    alert('결재 요청이 상신되었습니다.');
-  }, [approvals, user.name]);
-
-  const handleSendMail = useCallback((mailData: { recipient: string; subject: string; content: string; }) => {
-    const newMessage: Message = {
-        id: Math.max(0, ...messages.map(m => m.id)) + 1,
-        subject: mailData.subject,
-        content: mailData.content,
-        senderName: user.name,
-        date: new Date().toISOString(),
-        read: false, 
-        important: false,
-    };
-    const updated = [newMessage, ...messages];
-    setMessages(updated);
-    localStorage.setItem('erp_messages', JSON.stringify(updated));
-    setShowNewMailModal(false);
-    alert(`${mailData.recipient}님에게 메일을 성공적으로 보냈습니다.`);
-  }, [messages, user.name]);
-  
-  const handleCreateEmployee = useCallback((newEmployeeData: { name: string; position: string; department: string; email: string; }) => {
-    const newEmployee: Employee = {
-      id: Math.max(0, ...employees.map(e => e.id)) + 1,
-      ...newEmployeeData,
-      status: '재직',
-    };
-    const updated = [newEmployee, ...employees];
-    setEmployees(updated);
-    localStorage.setItem('erp_employees', JSON.stringify(updated));
-    setShowNewEmployeeModal(false);
-    alert(`${newEmployee.name}님이 사원으로 등록되었습니다.`);
-  }, [employees]);
-
-  const handleUpdateEmployee = useCallback((updatedEmployee: Employee) => {
-    const updated = employees.map(e => e.id === updatedEmployee.id ? updatedEmployee : e);
-    setEmployees(updated);
-    localStorage.setItem('erp_employees', JSON.stringify(updated));
-    setSelectedEmployee(null);
-    alert(`${updatedEmployee.name}님의 정보가 수정되었습니다.`);
-  }, [employees]);
-
-  const handleDeleteEmployee = useCallback((employeeId: number) => {
-    const employeeToDelete = employees.find(e => e.id === employeeId);
-    if (employeeToDelete && window.confirm(`${employeeToDelete.name}님의 정보를 정말로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`)) {
-      const updated = employees.filter(e => e.id !== employeeId);
-      setEmployees(updated);
-      localStorage.setItem('erp_employees', JSON.stringify(updated));
-      alert(`사원 정보가 삭제되었습니다.`);
-    }
-  }, [employees]);
-
-
-  const stats = {
-    pendingApprovals: approvals.filter(a => a.status === 'pending').length,
-    unreadMessages: messages.filter(m => !m.read).length,
-    totalEmployees: employees.length,
-    totalPrograms: 8
-  };
-
-  const renderContent = () => {
-    switch (activeMenu) {
-      case 'dashboard': return <Dashboard user={user} stats={stats} approvals={approvals} posts={posts} lastSync={lastSync} />;
-      case 'approval': return <ApprovalView approvals={approvals} handleApprovalStatusChange={handleApprovalStatusChange} onNewRequestClick={() => setShowNewApprovalModal(true)} onApprovalClick={setSelectedApproval} />;
-      case 'mail': return <MailView messages={messages} onMessageClick={handleViewMessage} onNewMailClick={() => setShowNewMailModal(true)} />;
-      case 'board': return <BoardView posts={posts} user={user} handleCreatePost={handleCreatePost} onPostClick={handleViewPost} />;
-      case 'employees': return <EmployeesView employees={employees} onNewEmployeeClick={() => setShowNewEmployeeModal(true)} onEmployeeClick={setSelectedEmployee} onDeleteEmployee={handleDeleteEmployee} />;
-      case 'documents': return <DocumentsView documents={documents} />;
-      case 'calendar': return <CalendarView events={events} />;
-      default: return <Dashboard user={user} stats={stats} approvals={approvals} posts={posts} lastSync={lastSync} />;
-    }
-  };
-
-  if (isLoading) {
+    const isSameDay = (d1: Date, d2: Date) => d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
+    
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <RefreshCw className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">시스템을 초기화하고 있습니다...</p>
+        <div className="flex-grow flex flex-col overflow-auto">
+            <div className="flex sticky top-0 bg-white z-10 border-b">
+                <div className="w-16 border-r"></div>
+                {days.map(day => {
+                    const isToday = isSameDay(day, new Date());
+                    return <div key={day.toISOString()} className={`flex-1 text-center p-2 font-bold text-sm ${isToday ? 'text-red-500' : ''}`}>{`${day.getDate()}일 (${['일', '월', '화', '수', '목', '금', '토'][day.getDay()]})`}</div>
+                })}
+            </div>
+            <div className="flex flex-grow">
+                <div className="w-16">
+                    {hours.map(hour => <div key={hour} className="h-20 text-right pr-2 text-xs text-gray-500 border-r pt-1">{`${hour}:00`}</div>)}
+                </div>
+                <div className="flex-1 grid grid-cols-7">
+                    {days.map(day => (
+                        <div key={day.toISOString()} className="border-r relative">
+                            {hours.map(hour => <div key={hour} className="h-20 border-b cursor-pointer" onClick={() => onSlotClick(new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour))}></div>)}
+                            {events.filter(e => isSameDay(e.start, day)).map(e => {
+                                const top = (e.start.getHours() - 8 + e.start.getMinutes() / 60) * 80; // 80px per hour
+                                const height = Math.max(20, (e.end.getTime() - e.start.getTime()) / (1000 * 60 * 60) * 80);
+                                return (
+                                <div key={e.id} style={{top: `${top}px`, height: `${height}px`}} onClick={(ev) => { ev.stopPropagation(); onEventClick(e); }} className={`absolute left-1 right-1 p-1 rounded text-white bg-${e.color}-500 text-[10px] md:text-xs z-10 overflow-hidden cursor-pointer`}>
+                                    <p className="font-bold">{e.title}</p>
+                                    <p>{`${e.start.getHours()}:${String(e.start.getMinutes()).padStart(2, '0')} - ${e.end.getHours()}:${String(e.end.getMinutes()).padStart(2, '0')}`}</p>
+                                </div>
+                                )
+                            })}
+                        </div>
+                    ))}
+                </div>
+            </div>
         </div>
-      </div>
     );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50 text-gray-800">
-      <header className="bg-white shadow-sm border-b px-6 py-3 sticky top-0 z-40">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center shadow-md">
-              <Building2 className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-gray-900">S&J희망나눔</h1>
-              <p className="text-xs text-gray-500">청소년 교육기관 ERP</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-6">
-            <div className="relative hidden md:block">
-              <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input type="text" placeholder="전체 검색..." className="pl-10 pr-4 py-2 w-64 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition" />
-            </div>
-            <button className="relative p-2 text-gray-500 hover:text-gray-700">
-              <Bell className="h-5 w-5" />
-              {stats.unreadMessages > 0 && <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center">{stats.unreadMessages}</span>}
-            </button>
-            <div className="flex items-center space-x-3">
-              <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                <p className="text-xs text-gray-500">{user.position}</p>
-              </div>
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">{user.name[0]}</div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex">
-        <aside className="w-64 bg-white shadow-sm h-[calc(100vh-64px)] sticky top-[64px] p-4 flex flex-col justify-between">
-          <nav>
-            <ul className="space-y-2">
-              {MENU_ITEMS.map(item => {
-                const Icon = item.icon;
-                return (
-                  <li key={item.id}>
-                    <button onClick={() => setActiveMenu(item.id)} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all duration-200 ${ activeMenu === item.id ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100' }`}>
-                      <Icon className="h-5 w-5" />
-                      <span className="font-medium">{item.name}</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-          <div>
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg text-sm flex items-center space-x-2"><Database className="h-4 w-4 text-gray-500" /><span className="text-gray-600">DB 상태:</span><span className="font-medium text-green-600">정상</span></div>
-            <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"><LogOut className="h-5 w-5" /><span>로그아웃</span></button>
-          </div>
-        </aside>
-        <main className="flex-1 p-8 overflow-y-auto">
-          {renderContent()}
-        </main>
-      </div>
-      {showNewApprovalModal && <NewApprovalModal onClose={() => setShowNewApprovalModal(false)} onSubmit={handleCreateApproval} />}
-      {selectedApproval && <ApprovalDetailModal approval={selectedApproval} onClose={() => setSelectedApproval(null)} />}
-      {showNewMailModal && <NewMailModal onClose={() => setShowNewMailModal(false)} onSubmit={handleSendMail} employees={employees} currentUser={user} />}
-      {selectedMessage && <MailDetailModal message={selectedMessage} onClose={() => setSelectedMessage(null)} />}
-      {selectedPost && <PostDetailModal post={selectedPost} onClose={() => setSelectedPost(null)} />}
-      {showNewEmployeeModal && <NewEmployeeModal onClose={() => setShowNewEmployeeModal(false)} onSubmit={handleCreateEmployee} />}
-      {selectedEmployee && <EditEmployeeModal employee={selectedEmployee} onClose={() => setSelectedEmployee(null)} onUpdate={handleUpdateEmployee} />}
-    </div>
-  );
 };
 
-export default ERPSystem;
+const DayView = ({ date, events, onSlotClick, onEventClick }: { date: Date, events: ScheduleEvent[], onSlotClick: (date: Date) => void, onEventClick: (event: ScheduleEvent) => void }) => {
+    const day = date;
+    const hours = Array.from({ length: 12 }, (_, i) => 8 + i); // 8 AM to 7 PM
+    const isSameDay = (d1: Date, d2: Date) => d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
+    
+    return (
+        <div className="flex-grow flex flex-col overflow-auto">
+            <div className="flex sticky top-0 bg-white z-10 border-b">
+                <div className="w-16 border-r"></div>
+                <div className="flex-1 text-center p-2 font-bold text-sm">{`${day.getDate()}일 (${['일', '월', '화', '수', '목', '금', '토'][day.getDay()]})`}</div>
+            </div>
+            <div className="flex flex-grow">
+                <div className="w-16">
+                    {hours.map(hour => <div key={hour} className="h-20 text-right pr-2 text-xs text-gray-500 border-r pt-1">{`${hour}:00`}</div>)}
+                </div>
+                <div className="flex-1 relative border-r">
+                     {hours.map(hour => <div key={hour} className="h-20 border-b cursor-pointer" onClick={() => onSlotClick(new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour))}></div>)}
+                     {events.filter(e => isSameDay(e.start, day)).map(e => {
+                        const top = (e.start.getHours() - 8 + e.start.getMinutes() / 60) * 80;
+                        const height = Math.max(20, (e.end.getTime() - e.start.getTime()) / (1000 * 60 * 60) * 80);
+                        return (
+                        <div key={e.id} style={{top: `${top}px`, height: `${height}px`}} onClick={(ev) => { ev.stopPropagation(); onEventClick(e); }} className={`absolute left-1 right-1 p-1 rounded text-white bg-${e.color}-500 text-xs z-10 overflow-hidden cursor-pointer`}>
+                            <p className="font-bold">{e.title}</p>
+                            <p>{`${e.start.getHours()}:${String(e.start.getMinutes()).padStart(2, '0')} - ${e.end.getHours()}:${String(e.end.getMinutes()).padStart(2, '0')}`}</p>
+                        </div>
+                        )
+                    })}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+function UserModal({ user, onClose, onSave }: { user: Partial<UserProfile> | null; onClose: () => void; onSave: (user: UserProfile) => void; }) {
+    const [currentUser, setCurrentUser] = useState(user || { name: '', team: '', position: '', email: '', phone: '' });
+
+    const handleSave = () => {
+        if (!currentUser.name) return alert('이름을 입력해주세요.');
+        onSave(currentUser as UserProfile);
+        onClose();
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setCurrentUser(prev => ({ ...prev, [name]: value }));
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg">
+                <h2 className="text-xl font-bold mb-4">{currentUser.id ? '사원 정보 수정' : '신규 사원 등록'}</h2>
+                <div className="grid grid-cols-2 gap-4">
+                    <input name="name" value={currentUser.name} onChange={handleChange} placeholder="이름" className="border p-2 rounded col-span-2"/>
+                    <input name="team" value={currentUser.team} onChange={handleChange} placeholder="부서" className="border p-2 rounded"/>
+                    <input name="position" value={currentUser.position} onChange={handleChange} placeholder="직책" className="border p-2 rounded"/>
+                    <input name="email" value={currentUser.email} onChange={handleChange} placeholder="이메일" className="border p-2 rounded col-span-2"/>
+                    <input name="phone" value={currentUser.phone} onChange={handleChange} placeholder="연락처" className="border p-2 rounded col-span-2"/>
+                </div>
+                <div className="mt-4 flex justify-end space-x-2">
+                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">취소</button>
+                    <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded">저장</button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function EmployeeView({users, onSave, onDelete}: {users: UserProfile[], onSave: (user: UserProfile) => void, onDelete: (userId: number) => void}) {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingUser, setEditingUser] = useState<Partial<UserProfile> | null>(null);
+
+    const filteredUsers = useMemo(() => users.filter(user => 
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.team.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.position.toLowerCase().includes(searchTerm.toLowerCase())
+    ), [users, searchTerm]);
+    
+    const handleCreate = () => {
+        setEditingUser(null);
+        setIsModalOpen(true);
+    };
+
+    const handleEdit = (user: UserProfile) => {
+        setEditingUser(user);
+        setIsModalOpen(true);
+    };
+
+    return (
+        <div className="p-8">
+            {isModalOpen && <UserModal user={editingUser} onClose={() => setIsModalOpen(false)} onSave={onSave} />}
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold">사원관리</h1>
+                <div className="flex items-center space-x-4">
+                    <div className="flex items-center border rounded-md">
+                        <input type="text" placeholder="사원 검색" className="px-2 py-1.5 text-sm outline-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                        <button className="p-1.5 border-l hover:bg-gray-100"><Search size={16} /></button>
+                    </div>
+                    <button onClick={handleCreate} className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                        <PlusCircle size={20} className="mr-2" /> 신규 사원 등록
+                    </button>
+                </div>
+            </div>
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+                <table className="min-w-full">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600">이름</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600">부서</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600">직책</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600">이메일</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600">연락처</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600">관리</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filteredUsers.map(user => (
+                            <tr key={user.id} className="border-b">
+                                <td className="p-4 text-gray-800 flex items-center">
+                                     <div className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center font-bold mr-3">{user.avatar}</div>
+                                     {user.name}
+                                </td>
+                                <td className="p-4 text-gray-600">{user.team}</td>
+                                <td className="p-4 text-gray-600">{user.position}</td>
+                                <td className="p-4 text-gray-600">{user.email}</td>
+                                <td className="p-4 text-gray-600">{user.phone}</td>
+                                <td className="p-4 text-gray-600 space-x-2">
+                                    <button onClick={() => handleEdit(user)} className="text-blue-500 hover:underline">수정</button>
+                                    <button onClick={() => onDelete(user.id)} className="text-red-500 hover:underline">삭제</button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    )
+}
+
+function DocumentActionModal({ doc, action, onClose, onSave, parentId }: { doc: Partial<Document> | null; action: 'create' | 'rename'; onClose: () => void; onSave: (doc: Partial<Document>, parentId: number|null) => void, parentId: number | null }) {
+    const [name, setName] = useState(action === 'rename' ? doc?.name || '' : '');
+    const [type, setType] = useState<'folder' | 'txt'>('folder');
+    
+    const handleSave = () => {
+        if (!name) return alert('이름을 입력해주세요.');
+        if (action === 'create') {
+            onSave({ name, type }, parentId);
+        } else {
+            onSave({ ...doc, name }, parentId);
+        }
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                <h2 className="text-xl font-bold mb-4">
+                    {action === 'create' ? '새로 만들기' : '이름 바꾸기'}
+                </h2>
+                {action === 'create' && (
+                    <select value={type} onChange={e => setType(e.target.value as any)} className="w-full border p-2 rounded mb-2">
+                        <option value="folder">폴더</option>
+                        <option value="txt">텍스트 파일</option>
+                    </select>
+                )}
+                <input value={name} onChange={e => setName(e.target.value)} placeholder="이름" className="w-full border p-2 rounded"/>
+                <div className="mt-4 flex justify-end space-x-2">
+                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">취소</button>
+                    <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded">저장</button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+
+function DocumentView({documents, onSave, onDelete}: {documents: Document[], onSave: (doc: Partial<Document>, parentId: number|null) => void, onDelete: (docId: number) => void}) {
+    const [currentFolderId, setCurrentFolderId] = useState<number | null>(null);
+    const [modalState, setModalState] = useState<{ isOpen: boolean, action: 'create'|'rename', doc: Partial<Document> | null }>({isOpen: false, action: 'create', doc: null});
+
+    const folders = useMemo(() => documents.filter(d => d.type === 'folder' && d.parentId === null), [documents]);
+    const currentItems = useMemo(() => documents.filter(d => d.parentId === currentFolderId), [documents, currentFolderId]);
+    
+    const getFileIcon = (type: Document['type']) => {
+        switch(type) {
+            case 'folder': return <Folder className="text-yellow-500" />;
+            case 'pdf': return <FileIcon className="text-red-500" />;
+            case 'docx': return <FileIcon className="text-blue-500" />;
+            case 'txt': return <FileType className="text-gray-500" />;
+            default: return <FileIcon className="text-gray-400" />;
+        }
+    };
+    
+    const breadcrumbs = useMemo(() => {
+        const path = [];
+        let folderId = currentFolderId;
+        while (folderId !== null) {
+            const folder = documents.find(d => d.id === folderId);
+            if (folder) {
+                path.unshift(folder);
+                folderId = folder.parentId;
+            } else {
+                break;
+            }
+        }
+        return path;
+    }, [currentFolderId, documents]);
+
+    return (
+        <div className="flex h-full">
+            {modalState.isOpen && <DocumentActionModal action={modalState.action} doc={modalState.doc} onClose={() => setModalState({isOpen: false, action: 'create', doc: null})} onSave={onSave} parentId={currentFolderId} />}
+            <div className="w-72 border-r bg-white p-4 flex flex-col">
+                <h2 className="text-xl font-bold mb-4">문서함</h2>
+                <ul className="space-y-1">
+                    {folders.map(folder => (
+                        <li key={folder.id}>
+                            <button onClick={() => setCurrentFolderId(folder.id)} className={`w-full text-left p-2 rounded-md text-sm flex items-center ${currentFolderId === folder.id ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}>
+                                <Folder size={16} className="mr-2 text-yellow-600" /> {folder.name}
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+            <div className="flex-1 flex flex-col">
+                <div className="p-4 border-b bg-white">
+                    <div className="flex justify-between items-center">
+                         <div className="text-sm text-gray-500">
+                             <button onClick={() => setCurrentFolderId(null)} className="hover:underline">문서관리</button>
+                             {breadcrumbs.map(b => (
+                                <span key={b.id}>
+                                    <ChevronRight size={14} className="inline mx-1" />
+                                    <button onClick={() => setCurrentFolderId(b.id)} className="hover:underline">{b.name}</button>
+                                </span>
+                             ))}
+                         </div>
+                         <div className="flex items-center space-x-2">
+                            <button onClick={() => setModalState({isOpen: true, action: 'create', doc: null})} className="flex items-center bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm hover:bg-blue-600">
+                                <PlusCircle size={16} className="mr-1"/> 새로 만들기
+                            </button>
+                            <div className="flex items-center border rounded-md">
+                                <input type="text" placeholder="문서 검색" className="px-2 py-1.5 text-sm outline-none" />
+                                <button className="p-1.5 border-l hover:bg-gray-100"><Search size={16} /></button>
+                            </div>
+                         </div>
+                    </div>
+                </div>
+                 <div className="flex-1 overflow-x-auto">
+                    <table className="min-w-full text-sm text-left bg-white">
+                        <thead className="border-b bg-gray-50 text-gray-500">
+                            <tr>
+                                <th className="p-3 w-12"></th>
+                                <th className="p-3">이름</th>
+                                <th className="p-3 w-48">소유자</th>
+                                <th className="p-3 w-48">수정한 날짜</th>
+                                <th className="p-3 w-24">파일 크기</th>
+                                <th className="p-3 w-32">관리</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {currentItems.map(item => (
+                                <tr key={item.id} className="border-b hover:bg-gray-50 cursor-pointer">
+                                    <td className="p-3" onDoubleClick={() => item.type === 'folder' && setCurrentFolderId(item.id)}>{getFileIcon(item.type)}</td>
+                                    <td className="p-3 font-medium text-gray-800" onDoubleClick={() => item.type === 'folder' && setCurrentFolderId(item.id)}>{item.name}</td>
+                                    <td className="p-3 text-gray-600" onDoubleClick={() => item.type === 'folder' && setCurrentFolderId(item.id)}>{item.owner}</td>
+                                    <td className="p-3 text-gray-600" onDoubleClick={() => item.type === 'folder' && setCurrentFolderId(item.id)}>{item.modifiedDate}</td>
+                                    <td className="p-3 text-gray-600" onDoubleClick={() => item.type === 'folder' && setCurrentFolderId(item.id)}>{item.size || '--'}</td>
+                                    <td className="p-3 text-gray-600 space-x-2">
+                                        <button onClick={() => setModalState({isOpen: true, action: 'rename', doc: item})} className="text-blue-500 hover:underline">이름변경</button>
+                                        <button onClick={() => onDelete(item.id)} className="text-red-500 hover:underline">삭제</button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+}
