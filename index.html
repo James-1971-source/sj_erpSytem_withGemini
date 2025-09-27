@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,7 +5,21 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>S&J 희망나눔 ERP</title>
+    <script>
+      // Immediately set the theme on page load to prevent FOUC (Flash of Unstyled Content)
+      if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // This config is ESSENTIAL for Tailwind to enable class-based dark mode.
+      tailwind.config = {
+        darkMode: 'class',
+      }
+    </script>
 <script type="importmap">
 {
   "imports": {

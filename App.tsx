@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
     LayoutDashboard, Mail, FileCheck, MessageSquare, Files, Users, FileText, Calendar, Database, LogOut, 
     Bell, User, ChevronDown, Search, Home, Briefcase, Power, MoreHorizontal, ChevronLeft, Trash2, Archive, 
     Send, FileWarning, Inbox, Star, Paperclip, CornerUpLeft, CornerUpRight, Trash, EllipsisVertical, ChevronsLeft,
-    ChevronsRight, ChevronRight, CheckSquare, Settings, Video, X, Clock, Folder, File as FileIcon, FileType, PlusCircle, Edit, UploadCloud
+    ChevronsRight, ChevronRight, CheckSquare, Settings, Video, X, Clock, Folder, File as FileIcon, FileType, PlusCircle, Edit, UploadCloud,
+    Moon, Sun
 } from 'lucide-react';
 
 // --- TYPES ---
@@ -104,6 +106,21 @@ export default function App() {
     const [activeMenu, setActiveMenu] = useState('대시보드');
     const [mobileView, setMobileView] = useState('home'); 
     const [mobileHistory, setMobileHistory] = useState<string[]>(['home']);
+    const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+
+    useEffect(() => {
+        const root = window.document.documentElement;
+        if (theme === 'dark') {
+            root.classList.add('dark');
+        } else {
+            root.classList.remove('dark');
+        }
+        localStorage.setItem('theme', theme);
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme(theme === 'light' ? 'dark' : 'light');
+    };
 
     // --- All Data States ---
     const [users, setUsers] = useState<UserProfile[]>(initialUsers);
@@ -240,7 +257,7 @@ export default function App() {
             case '일정관리': return <ScheduleView events={schedules} setEvents={setSchedules} currentUser={userProfile} />;
             case '사원관리': return <EmployeeView users={users} onSave={handleSaveUser} onDelete={handleDeleteUser}/>;
             case '문서관리': return <DocumentView documents={documents} onSave={handleSaveDocument} onDelete={handleDeleteDocument}/>;
-            default: return <div className="p-8"><h1 className="text-2xl font-bold">{activeMenu}</h1><p>콘텐츠 준비 중입니다.</p></div>;
+            default: return <div className="p-8"><h1 className="text-2xl font-bold dark:text-white">{activeMenu}</h1><p className="dark:text-gray-300">콘텐츠 준비 중입니다.</p></div>;
         }
     };
 
@@ -256,46 +273,49 @@ export default function App() {
             case '일정관리': return <ScheduleView events={schedules} setEvents={setSchedules} isMobile={true} currentUser={userProfile} />;
             case '사원관리': return <EmployeeView users={users} onSave={handleSaveUser} onDelete={handleDeleteUser} />;
             case '문서관리': return <DocumentView documents={documents} onSave={handleSaveDocument} onDelete={handleDeleteDocument} />;
-            default: return <div className="p-4"><h1 className="text-xl font-bold">{mobileView}</h1><p>콘텐츠 준비 중입니다.</p></div>;
+            default: return <div className="p-4"><h1 className="text-xl font-bold dark:text-white">{mobileView}</h1><p className="dark:text-gray-300">콘텐츠 준비 중입니다.</p></div>;
         }
     };
 
     if (isMobile) {
         return (
-            <div className="flex flex-col h-screen bg-gray-100 font-sans">
+            <div className="flex flex-col h-screen bg-gray-100 dark:bg-gray-900 font-sans">
                 {mobileView === 'home' ? (
                     <>
-                        <header className="bg-white p-4 flex justify-between items-center shadow">
+                        <header className="bg-white dark:bg-gray-800 p-4 flex justify-between items-center shadow">
                             <h1 className="text-lg font-bold text-orange-500">S&J희망나눔</h1>
                             <div className="flex items-center space-x-4">
-                               <Power size={24} className="text-gray-600" />
-                               <Users size={24} className="text-gray-600" />
-                               <Mail size={24} className="text-gray-600" />
+                               <button onClick={toggleTheme} className="text-gray-600 dark:text-gray-300">
+                                   {theme === 'light' ? <Moon size={24} /> : <Sun size={24} />}
+                               </button>
+                               <Power size={24} className="text-gray-600 dark:text-gray-300" />
+                               <Users size={24} className="text-gray-600 dark:text-gray-300" />
+                               <Mail size={24} className="text-gray-600 dark:text-gray-300" />
                             </div>
                         </header>
                         <main className="flex-grow p-4 grid grid-cols-4 gap-4">
                             {mobileGridItems.map(item => (
-                                <button key={item.label} onClick={() => item.view !== '#' && navigateMobile(item.view)} className="flex flex-col items-center justify-center bg-white p-2 rounded-lg shadow space-y-2 relative">
+                                <button key={item.label} onClick={() => item.view !== '#' && navigateMobile(item.view)} className="flex flex-col items-center justify-center bg-white dark:bg-gray-800 p-2 rounded-lg shadow space-y-2 relative">
                                     {item.count > 0 && <span className="absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">{item.count > 99 ? '99+' : item.count}</span>}
-                                    <item.icon size={32} className="text-gray-700" />
-                                    <span className="text-xs text-center">{item.label}</span>
+                                    <item.icon size={32} className="text-gray-700 dark:text-gray-300" />
+                                    <span className="text-xs text-center dark:text-gray-200">{item.label}</span>
                                 </button>
                             ))}
                         </main>
-                        <footer className="bg-white shadow-t flex justify-around p-2">
+                        <footer className="bg-white dark:bg-gray-800 shadow-t flex justify-around p-2">
                              <button onClick={() => navigateMobile('home')} className="flex flex-col items-center text-red-500">
                                 <Home size={24} />
                                 <span className="text-xs">홈</span>
                             </button>
-                            <button className="flex flex-col items-center text-gray-600">
+                            <button className="flex flex-col items-center text-gray-600 dark:text-gray-300">
                                 <Power size={24} />
                                 <span className="text-xs">출근</span>
                             </button>
-                            <button className="flex flex-col items-center text-gray-600">
+                            <button className="flex flex-col items-center text-gray-600 dark:text-gray-300">
                                 <Power size={24} className="rotate-180" />
                                 <span className="text-xs">퇴근</span>
                             </button>
-                            <button className="flex flex-col items-center text-gray-600">
+                            <button className="flex flex-col items-center text-gray-600 dark:text-gray-300">
                                 <MoreHorizontal size={24} />
                                 <span className="text-xs">더보기</span>
                             </button>
@@ -303,14 +323,14 @@ export default function App() {
                     </>
                 ) : (
                     <div className="flex flex-col h-full">
-                       <header className="bg-white p-4 flex items-center shadow-md sticky top-0 z-10">
-                            <button onClick={goBackMobile} className="mr-4"><ChevronLeft size={24} /></button>
-                            <h2 className="text-lg font-bold flex-grow text-center">
-                              {mobileView.startsWith('mail-') ? mailboxes[mobileView.split('-')[1]].label : mobileView}
+                       <header className="bg-white dark:bg-slate-800 p-4 flex items-center shadow-md sticky top-0 z-10">
+                            <button onClick={goBackMobile} className="mr-4 dark:text-white"><ChevronLeft size={24} /></button>
+                            <h2 className="text-lg font-bold flex-grow text-center dark:text-white">
+                              {mobileView.startsWith('mail-') ? mailboxes[mobileView.split('-')[1] as keyof typeof mailboxes].label : mobileView}
                             </h2>
                             <button className="ml-4 invisible"><ChevronLeft size={24} /></button>
                         </header>
-                       <main className="flex-grow overflow-y-auto bg-white">
+                       <main className="flex-grow overflow-y-auto bg-white dark:bg-slate-900">
                          <MobileSubView />
                        </main>
                     </div>
@@ -320,23 +340,23 @@ export default function App() {
     }
 
     return (
-        <div className="flex h-screen bg-gray-50 font-sans">
+        <div className="flex h-screen bg-gray-50 dark:bg-gray-900 font-sans">
             {/* Desktop Sidebar */}
-            <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
-                <div className="p-4 border-b border-gray-200 flex items-center space-x-3">
+            <aside className="w-64 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center space-x-3">
                     <div className="bg-blue-600 text-white p-3 rounded-lg">
                         <Files size={24} />
                     </div>
                     <div>
-                        <h1 className="font-bold text-lg text-gray-800">S&J희망나눔</h1>
-                        <p className="text-xs text-gray-500">청소년 교육기관 ERP</p>
+                        <h1 className="font-bold text-lg text-gray-800 dark:text-gray-100">S&J희망나눔</h1>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">청소년 교육기관 ERP</p>
                     </div>
                 </div>
                 <nav className="flex-grow pt-4">
                     <ul>
                         {navItems.map(item => (
                             <li key={item.id} className="px-4 mb-1">
-                                <button onClick={() => setActiveMenu(item.label)} className={`w-full flex items-center justify-between p-3 rounded-lg text-sm transition-all duration-200 ${activeMenu === item.label ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`}>
+                                <button onClick={() => setActiveMenu(item.label)} className={`w-full flex items-center justify-between p-3 rounded-lg text-sm transition-all duration-200 ${activeMenu === item.label ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700'}`}>
                                     <div className="flex items-center">
                                         <item.icon size={20} className="mr-3" />
                                         <span className={activeMenu === item.label ? 'font-semibold' : ''}>{item.label}</span>
@@ -351,12 +371,12 @@ export default function App() {
                         ))}
                     </ul>
                 </nav>
-                <div className="p-4 border-t border-gray-200">
-                     <div className="bg-gray-100 p-3 rounded-lg flex items-center text-sm text-gray-700">
+                <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                     <div className="bg-gray-100 dark:bg-slate-700 p-3 rounded-lg flex items-center text-sm text-gray-700 dark:text-gray-300">
                         <Database size={20} className="mr-3 text-green-500" />
-                        <span>DB 상태: <span className="font-semibold text-green-600">정상</span></span>
+                        <span>DB 상태: <span className="font-semibold text-green-600 dark:text-green-400">정상</span></span>
                     </div>
-                     <button className="w-full flex items-center p-3 mt-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100">
+                     <button className="w-full flex items-center p-3 mt-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700">
                          <LogOut size={20} className="mr-3" />
                          <span>로그아웃</span>
                      </button>
@@ -364,23 +384,26 @@ export default function App() {
             </aside>
             {/* Main Content */}
             <div className="flex-1 flex flex-col">
-                <header className="bg-white border-b border-gray-200 flex items-center justify-end p-4 h-16">
+                <header className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-end p-4 h-16">
                     <div className="flex items-center space-x-6">
-                        <button className="relative text-gray-500 hover:text-gray-800">
+                        <button onClick={toggleTheme} className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white">
+                            {theme === 'light' ? <Moon size={24} /> : <Sun size={24} />}
+                        </button>
+                        <button className="relative text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white">
                             <Bell size={24} />
-                            <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
+                            <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-800" />
                         </button>
                         <div className="flex items-center space-x-3">
                             <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">{userProfile.avatar}</div>
                             <div>
-                                <p className="font-semibold text-sm text-gray-800">{userProfile.name}</p>
-                                <p className="text-xs text-gray-500">{userProfile.team}, {userProfile.position}</p>
+                                <p className="font-semibold text-sm text-gray-800 dark:text-gray-100">{userProfile.name}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">{userProfile.team}, {userProfile.position}</p>
                             </div>
                             <ChevronDown size={16} className="text-gray-400" />
                         </div>
                     </div>
                 </header>
-                <main className="flex-1 overflow-y-auto bg-gray-50">
+                <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
                     <MainView />
                 </main>
             </div>
@@ -401,21 +424,21 @@ const mailboxes = {
 
 const DashboardCard = ({ icon: Icon, title, value, unit, color, onClick }: { icon: React.ElementType, title: string, value: number, unit: string, color: 'yellow' | 'blue' | 'green' | 'purple', onClick: () => void }) => {
     const colors = {
-        yellow: { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: 'text-yellow-500' },
-        blue: { bg: 'bg-blue-100', text: 'text-blue-800', icon: 'text-blue-500' },
-        green: { bg: 'bg-green-100', text: 'text-green-800', icon: 'text-green-500' },
-        purple: { bg: 'bg-purple-100', text: 'text-purple-800', icon: 'text-purple-500' },
+        yellow: { bg: 'bg-yellow-100 dark:bg-yellow-900/50', text: 'text-yellow-800 dark:text-yellow-300', icon: 'text-yellow-500 dark:text-yellow-400' },
+        blue: { bg: 'bg-blue-100 dark:bg-blue-900/50', text: 'text-blue-800 dark:text-blue-300', icon: 'text-blue-500 dark:text-blue-400' },
+        green: { bg: 'bg-green-100 dark:bg-green-900/50', text: 'text-green-800 dark:text-green-300', icon: 'text-green-500 dark:text-green-400' },
+        purple: { bg: 'bg-purple-100 dark:bg-purple-900/50', text: 'text-purple-800 dark:text-purple-300', icon: 'text-purple-500 dark:text-purple-400' },
     };
     const selectedColor = colors[color];
 
     return (
-        <div onClick={onClick} className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer flex items-start">
+        <div onClick={onClick} className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer flex items-start">
             <div className={`p-3 rounded-full ${selectedColor.bg} mr-4`}>
                 <Icon size={24} className={selectedColor.icon} />
             </div>
             <div>
-                <p className="text-sm text-gray-500">{title}</p>
-                <p className="text-2xl font-bold text-gray-800 mt-1">
+                <p className="text-sm text-gray-500 dark:text-gray-400">{title}</p>
+                <p className="text-2xl font-bold text-gray-800 dark:text-gray-200 mt-1">
                     {value} <span className="text-lg font-medium">{unit}</span>
                 </p>
             </div>
@@ -437,8 +460,8 @@ function DashboardView({ userProfile, approvals, emails, posts, schedules, setAc
     
     return (
         <div className="p-6 lg:p-8">
-            <h1 className="text-3xl font-bold text-gray-800">안녕하세요, {userProfile.name}님!</h1>
-            <p className="text-gray-500 mt-1">오늘의 주요 현황을 확인하세요.</p>
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">안녕하세요, {userProfile.name}님!</h1>
+            <p className="text-gray-500 dark:text-gray-400 mt-1">오늘의 주요 현황을 확인하세요.</p>
             
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mt-8">
                 <DashboardCard icon={FileCheck} title="결재 대기" value={pendingApprovalsCount} unit="건" color="yellow" onClick={() => setActiveMenu('전자결재')} />
@@ -448,35 +471,35 @@ function DashboardView({ userProfile, approvals, emails, posts, schedules, setAc
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mt-8">
-                <div className="xl:col-span-2 bg-white p-6 rounded-lg shadow">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">오늘의 일정</h2>
+                <div className="xl:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-lg shadow">
+                    <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">오늘의 일정</h2>
                     {todaysSchedules.length > 0 ? (
                         <ul className="space-y-4">
                             {todaysSchedules.map(event => (
                                 <li key={event.id} className="flex items-center space-x-4">
-                                    <div className={`w-14 text-center px-2 py-1 rounded-md bg-${event.color}-100 text-${event.color}-800`}>
+                                    <div className={`w-14 text-center px-2 py-1 rounded-md bg-${event.color}-100 text-${event.color}-800 dark:bg-opacity-20 dark:text-${event.color}-300`}>
                                         <p className="font-bold text-sm">{formatTime(event.start)}</p>
                                     </div>
-                                    <div className="flex-grow border-l-4 pl-4" style={{borderColor: `var(--color-${event.color}-500, ${event.color})`}}>
-                                        <p className="font-semibold text-gray-700">{event.title}</p>
-                                        <p className="text-sm text-gray-500">{event.type} / {event.owner}</p>
+                                    <div className="flex-grow border-l-4 pl-4" style={{borderColor: event.color}}>
+                                        <p className="font-semibold text-gray-700 dark:text-gray-200">{event.title}</p>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">{event.type} / {event.owner}</p>
                                     </div>
                                 </li>
                             ))}
                         </ul>
                     ) : (
-                        <p className="text-gray-500">오늘 예정된 일정이 없습니다.</p>
+                        <p className="text-gray-500 dark:text-gray-400">오늘 예정된 일정이 없습니다.</p>
                     )}
                 </div>
                 
-                <div className="bg-white p-6 rounded-lg shadow">
-                     <h2 className="text-xl font-bold text-gray-800 mb-4">최신 게시물</h2>
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow">
+                     <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">최신 게시물</h2>
                       {recentPosts.length > 0 ? (
                         <ul className="space-y-3">
                             {recentPosts.map(post => (
                                 <li key={post.id} className="group cursor-pointer">
-                                    <p className="font-semibold text-gray-700 group-hover:text-blue-600 truncate">{post.title}</p>
-                                    <div className="flex justify-between text-sm text-gray-500 mt-1">
+                                    <p className="font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate">{post.title}</p>
+                                    <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400 mt-1">
                                         <span>{post.author}</span>
                                         <span>{post.date}</span>
                                     </div>
@@ -484,17 +507,17 @@ function DashboardView({ userProfile, approvals, emails, posts, schedules, setAc
                             ))}
                         </ul>
                     ) : (
-                         <p className="text-gray-500">최신 게시물이 없습니다.</p>
+                         <p className="text-gray-500 dark:text-gray-400">최신 게시물이 없습니다.</p>
                     )}
                 </div>
             </div>
 
-            <div className="mt-8 bg-white p-6 rounded-lg shadow">
-                <h2 className="text-xl font-bold text-gray-800 mb-4">최근 결재 문서</h2>
+            <div className="mt-8 bg-white dark:bg-slate-800 p-6 rounded-lg shadow">
+                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">최근 결재 문서</h2>
                  {recentApprovals.length > 0 ? (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
-                            <thead className="text-left text-gray-500">
+                            <thead className="text-left text-gray-500 dark:text-gray-400">
                                 <tr>
                                     <th className="p-2 font-medium">문서 제목</th>
                                     <th className="p-2 font-medium">기안자</th>
@@ -504,12 +527,12 @@ function DashboardView({ userProfile, approvals, emails, posts, schedules, setAc
                             </thead>
                             <tbody>
                                 {recentApprovals.map(item => (
-                                    <tr key={item.id} className="border-t">
-                                        <td className="p-2 text-gray-800 font-medium">{item.title}</td>
-                                        <td className="p-2 text-gray-600">{item.requester}</td>
-                                        <td className="p-2 text-gray-600">{item.date}</td>
+                                    <tr key={item.id} className="border-t dark:border-gray-700">
+                                        <td className="p-2 text-gray-800 dark:text-gray-200 font-medium">{item.title}</td>
+                                        <td className="p-2 text-gray-600 dark:text-gray-300">{item.requester}</td>
+                                        <td className="p-2 text-gray-600 dark:text-gray-300">{item.date}</td>
                                         <td className="p-2 text-center">
-                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${item.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : item.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${item.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/80 dark:text-yellow-300' : item.status === 'approved' ? 'bg-green-100 text-green-800 dark:bg-green-900/80 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/80 dark:text-red-300'}`}>
                                                 {item.status === 'pending' ? '대기중' : item.status === 'approved' ? '승인' : '반려'}
                                             </span>
                                         </td>
@@ -519,7 +542,7 @@ function DashboardView({ userProfile, approvals, emails, posts, schedules, setAc
                         </table>
                     </div>
                 ) : (
-                    <p className="text-gray-500">최근 결재 문서가 없습니다.</p>
+                    <p className="text-gray-500 dark:text-gray-400">최근 결재 문서가 없습니다.</p>
                 )}
             </div>
         </div>
@@ -596,16 +619,16 @@ function MailView({ emails, setEmails, isMobile, mobileView, navigateMobile, onS
     if (isMobile) {
         if (mobileView === 'mail') {
             return (
-                <div className="bg-white">
+                <div className="bg-white dark:bg-slate-900">
                     <ul>
                         {mailboxOrder.map((key) => {
-                             const value = currentMailboxes[key];
+                             const value = currentMailboxes[key as keyof typeof currentMailboxes];
                              if (!value) return null;
                              return (
                                 <li key={key}>
-                                    <button onClick={() => navigateMobile!(`mail-${key}`)} className="w-full flex justify-between items-center p-4 border-b">
-                                        <div className="flex items-center">
-                                            <value.icon size={20} className="mr-3 text-gray-600" />
+                                    <button onClick={() => navigateMobile!(`mail-${key}`)} className="w-full flex justify-between items-center p-4 border-b dark:border-gray-700">
+                                        <div className="flex items-center dark:text-gray-200">
+                                            <value.icon size={20} className="mr-3 text-gray-600 dark:text-gray-400" />
                                             <span>{value.label}</span>
                                         </div>
                                         {value.count > 0 && <span className="bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-full">{value.count}</span>}
@@ -621,17 +644,17 @@ function MailView({ emails, setEmails, isMobile, mobileView, navigateMobile, onS
         return (
             <div>
                 {emails.filter(e => e.mailbox === currentMailbox).map(email => (
-                    <div key={email.id} className={`p-4 border-b flex ${email.unread ? 'bg-blue-50' : 'bg-white'}`}>
+                    <div key={email.id} className={`p-4 border-b dark:border-gray-800 flex ${email.unread ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-white dark:bg-slate-900'}`}>
                         <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 shrink-0" style={{visibility: email.unread ? 'visible': 'hidden'}}></div>
                         <div className="flex-grow">
                             <div className="flex justify-between items-center">
-                                <span className={`font-semibold ${email.unread ? 'text-gray-800' : 'text-gray-500'}`}>{email.from}</span>
-                                <span className="text-xs text-gray-400">{email.date.split(' ')[0]}</span>
+                                <span className={`font-semibold ${email.unread ? 'text-gray-800 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'}`}>{email.from}</span>
+                                <span className="text-xs text-gray-400 dark:text-gray-500">{email.date.split(' ')[0]}</span>
                             </div>
-                            <p className={`text-sm ${email.unread ? 'text-gray-700' : 'text-gray-500'} truncate`}>{email.subject}</p>
+                            <p className={`text-sm ${email.unread ? 'text-gray-700 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400'} truncate`}>{email.subject}</p>
                         </div>
                         <button onClick={() => toggleImportance(email.id)}>
-                            <Star size={20} className={`ml-2 ${email.important ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
+                            <Star size={20} className={`ml-2 ${email.important ? 'text-yellow-400 fill-current' : 'text-gray-300 dark:text-gray-600'}`} />
                         </button>
                     </div>
                 ))}
@@ -642,11 +665,11 @@ function MailView({ emails, setEmails, isMobile, mobileView, navigateMobile, onS
     return (
         <div className="flex h-full">
              {isComposing && <ComposeMailModal onClose={() => setIsComposing(false)} onSubmit={handleComposeSubmit} />}
-            <div className="w-72 border-r bg-white p-4 flex flex-col">
-                <h2 className="text-xl font-bold mb-4">메일</h2>
+            <div className="w-72 border-r bg-white dark:bg-slate-800 dark:border-gray-700 p-4 flex flex-col">
+                <h2 className="text-xl font-bold mb-4 dark:text-white">메일</h2>
                 <div className="space-y-1">
                     <button onClick={() => setIsComposing(true)} className="w-full bg-blue-600 text-white rounded-md py-2 text-sm font-semibold">메일쓰기</button>
-                    <button className="w-full bg-gray-200 text-gray-700 rounded-md py-2 text-sm font-semibold">내게쓰기</button>
+                    <button className="w-full bg-gray-200 text-gray-700 dark:bg-slate-700 dark:text-gray-200 rounded-md py-2 text-sm font-semibold">내게쓰기</button>
                 </div>
                 <div className="mt-6 flex-grow">
                     <ul className="space-y-1">
@@ -655,11 +678,11 @@ function MailView({ emails, setEmails, isMobile, mobileView, navigateMobile, onS
                             if (!value) return null;
                             return (
                                 <li key={key}>
-                                    <button onClick={() => {setActiveMailbox(key); setCurrentPage(1); setSelectedEmails(new Set());}} className={`w-full text-left p-2 rounded-md text-sm flex justify-between items-center ${activeMailbox === key ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}>
+                                    <button onClick={() => {setActiveMailbox(key); setCurrentPage(1); setSelectedEmails(new Set());}} className={`w-full text-left p-2 rounded-md text-sm flex justify-between items-center ${activeMailbox === key ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 font-semibold' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700'}`}>
                                         <div className="flex items-center">
                                             <value.icon size={16} className="mr-2" /> {value.label}
                                         </div>
-                                        {value.count > 0 && <span className="text-xs bg-red-200 text-red-800 px-1.5 py-0.5 rounded-full">{value.count}</span>}
+                                        {value.count > 0 && <span className="text-xs bg-red-200 text-red-800 dark:bg-red-500/50 dark:text-red-200 px-1.5 py-0.5 rounded-full">{value.count}</span>}
                                     </button>
                                 </li>
                             );
@@ -668,38 +691,38 @@ function MailView({ emails, setEmails, isMobile, mobileView, navigateMobile, onS
                 </div>
             </div>
             <div className="flex-1 flex flex-col">
-                <div className="p-4 border-b bg-white">
-                    <h2 className="text-2xl font-bold">
+                <div className="p-4 border-b bg-white dark:bg-slate-800 dark:border-gray-700">
+                    <h2 className="text-2xl font-bold dark:text-white">
                         {currentMailboxes[activeMailbox].label}
                     </h2>
                     <div className="flex justify-between items-center mt-4">
                         <div className="flex items-center space-x-2">
                             {activeMailbox === 'trash' || activeMailbox === 'spam' ? (
                                 <>
-                                    <button onClick={() => moveSelectedEmails('inbox')} className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-100 disabled:opacity-50" disabled={selectedEmails.size === 0}>복원</button>
-                                    <button onClick={() => deleteSelectedEmailsPermanently()} className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-100 bg-red-50 text-red-700 disabled:opacity-50" disabled={selectedEmails.size === 0}>완전 삭제</button>
+                                    <button onClick={() => moveSelectedEmails('inbox')} className="px-3 py-1.5 border dark:border-gray-600 rounded-md text-sm hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-gray-300 disabled:opacity-50" disabled={selectedEmails.size === 0}>복원</button>
+                                    <button onClick={() => deleteSelectedEmailsPermanently()} className="px-3 py-1.5 border dark:border-gray-600 rounded-md text-sm hover:bg-gray-100 bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300 disabled:opacity-50" disabled={selectedEmails.size === 0}>완전 삭제</button>
                                 </>
                             ) : (
                                 <>
-                                    <button onClick={() => moveSelectedEmails('trash')} className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-100 disabled:opacity-50" disabled={selectedEmails.size === 0}>삭제</button>
-                                    <button onClick={() => moveSelectedEmails('spam')} className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-100 disabled:opacity-50" disabled={selectedEmails.size === 0}>스팸</button>
-                                    <button onClick={() => moveSelectedEmails('archive')} className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-100 disabled:opacity-50" disabled={selectedEmails.size === 0}>내게쓴메일함으로 이동</button>
+                                    <button onClick={() => moveSelectedEmails('trash')} className="px-3 py-1.5 border dark:border-gray-600 rounded-md text-sm hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-gray-300 disabled:opacity-50" disabled={selectedEmails.size === 0}>삭제</button>
+                                    <button onClick={() => moveSelectedEmails('spam')} className="px-3 py-1.5 border dark:border-gray-600 rounded-md text-sm hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-gray-300 disabled:opacity-50" disabled={selectedEmails.size === 0}>스팸</button>
+                                    <button onClick={() => moveSelectedEmails('archive')} className="px-3 py-1.5 border dark:border-gray-600 rounded-md text-sm hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-gray-300 disabled:opacity-50" disabled={selectedEmails.size === 0}>내게쓴메일함으로 이동</button>
                                 </>
                             )}
-                             <button className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-100">답장</button>
-                             <button className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-100">전달</button>
+                             <button className="px-3 py-1.5 border dark:border-gray-600 rounded-md text-sm hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-gray-300">답장</button>
+                             <button className="px-3 py-1.5 border dark:border-gray-600 rounded-md text-sm hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-gray-300">전달</button>
                         </div>
-                         <div className="flex items-center border rounded-md">
-                            <input type="text" placeholder="메일 검색" className="px-2 py-1.5 text-sm outline-none" />
-                            <button className="p-1.5 border-l hover:bg-gray-100"><Search size={16} /></button>
+                         <div className="flex items-center border dark:border-gray-600 rounded-md">
+                            <input type="text" placeholder="메일 검색" className="px-2 py-1.5 text-sm outline-none bg-transparent dark:text-white" />
+                            <button className="p-1.5 border-l dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-gray-300"><Search size={16} /></button>
                          </div>
                     </div>
                 </div>
                 <div className="flex-1 overflow-x-auto">
-                    <table className="min-w-full text-sm text-left bg-white">
-                        <thead className="border-b bg-gray-50 text-gray-500">
+                    <table className="min-w-full text-sm text-left bg-white dark:bg-slate-800">
+                        <thead className="border-b dark:border-gray-700 bg-gray-50 dark:bg-slate-700 text-gray-500 dark:text-gray-400">
                             <tr>
-                                <th className="p-3 w-12"><input type="checkbox" onChange={handleSelectAll} checked={selectedEmails.size > 0 && selectedEmails.size === paginatedEmails.length} /></th>
+                                <th className="p-3 w-12"><input type="checkbox" onChange={handleSelectAll} checked={selectedEmails.size > 0 && selectedEmails.size === paginatedEmails.length} className="dark:bg-gray-700 dark:border-gray-600"/></th>
                                 <th className="p-3 w-12"></th>
                                 <th className="p-3 w-48">보낸사람/받는사람</th>
                                 <th className="p-3">제목</th>
@@ -709,32 +732,32 @@ function MailView({ emails, setEmails, isMobile, mobileView, navigateMobile, onS
                         </thead>
                         <tbody>
                             {paginatedEmails.map(email => (
-                                <tr key={email.id} className={`border-b hover:bg-gray-50 ${email.unread ? 'font-bold text-gray-800' : 'text-gray-600'}`}>
-                                    <td className="p-3"><input type="checkbox" checked={selectedEmails.has(email.id)} onChange={() => handleSelectOne(email.id)} /></td>
+                                <tr key={email.id} className={`border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-slate-700/50 ${email.unread ? 'font-bold text-gray-800 dark:text-white' : 'text-gray-600 dark:text-gray-300'}`}>
+                                    <td className="p-3"><input type="checkbox" checked={selectedEmails.has(email.id)} onChange={() => handleSelectOne(email.id)} className="dark:bg-gray-700 dark:border-gray-600"/></td>
                                     <td className="p-3">
                                       <button onClick={() => toggleImportance(email.id)}>
-                                        <Star size={16} className={email.important ? 'text-yellow-400 fill-current' : 'text-gray-300 hover:text-yellow-400'}/>
+                                        <Star size={16} className={email.important ? 'text-yellow-400 fill-current' : 'text-gray-300 dark:text-gray-600 hover:text-yellow-400'}/>
                                       </button>
                                       {email.hasAttachment && <Paperclip size={16} className="ml-1 text-gray-400" />}
                                     </td>
                                     <td className="p-3">{activeMailbox === 'sent' ? email.to : email.from}</td>
                                     <td className="p-3">{email.subject}</td>
-                                    <td className="p-3 text-gray-500 font-normal">{email.date}</td>
-                                    <td className="p-3 text-gray-500 font-normal">{email.size}</td>
+                                    <td className="p-3 text-gray-500 dark:text-gray-400 font-normal">{email.date}</td>
+                                    <td className="p-3 text-gray-500 dark:text-gray-400 font-normal">{email.size}</td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
                 {totalPages > 1 && (
-                    <div className="p-4 border-t bg-white flex justify-center items-center space-x-2">
-                        <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50"><ChevronsLeft size={16} /></button>
-                        <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50"><ChevronLeft size={16} /></button>
+                    <div className="p-4 border-t dark:border-gray-700 bg-white dark:bg-slate-800 flex justify-center items-center space-x-2">
+                        <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-gray-300 disabled:opacity-50"><ChevronsLeft size={16} /></button>
+                        <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-gray-300 disabled:opacity-50"><ChevronLeft size={16} /></button>
                         {[...Array(totalPages)].map((_, i) => (
-                          <button key={i} onClick={() => setCurrentPage(i+1)} className={`px-3 py-1 rounded-md ${currentPage === i+1 ? 'bg-blue-600 text-white' : 'hover:bg-gray-100'}`}>{i+1}</button>
+                          <button key={i} onClick={() => setCurrentPage(i+1)} className={`px-3 py-1 rounded-md ${currentPage === i+1 ? 'bg-blue-600 text-white' : 'hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-gray-300'}`}>{i+1}</button>
                         ))}
-                        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50"><ChevronRight size={16} /></button>
-                        <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50"><ChevronsRight size={16} /></button>
+                        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-gray-300 disabled:opacity-50"><ChevronRight size={16} /></button>
+                        <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-gray-300 disabled:opacity-50"><ChevronsRight size={16} /></button>
                     </div>
                 )}
             </div>
@@ -753,27 +776,27 @@ function ComposeMailModal({ onClose, onSubmit }: { onClose: () => void; onSubmit
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl">
-                <div className="flex justify-between items-center mb-4 border-b pb-3">
-                    <h2 className="text-xl font-bold">새 메일 작성</h2>
-                    <button onClick={onClose}><X size={24} /></button>
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-2xl">
+                <div className="flex justify-between items-center mb-4 border-b dark:border-gray-600 pb-3">
+                    <h2 className="text-xl font-bold dark:text-white">새 메일 작성</h2>
+                    <button onClick={onClose} className="dark:text-gray-300"><X size={24} /></button>
                 </div>
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">받는사람</label>
-                        <input type="email" value={to} onChange={e => setTo(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="email@example.com"/>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">받는사람</label>
+                        <input type="email" value={to} onChange={e => setTo(e.target.value)} className="mt-1 block w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="email@example.com"/>
                     </div>
                      <div>
-                        <label className="block text-sm font-medium text-gray-700">제목</label>
-                        <input type="text" value={subject} onChange={e => setSubject(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">제목</label>
+                        <input type="text" value={subject} onChange={e => setSubject(e.target.value)} className="mt-1 block w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">내용</label>
-                        <textarea value={body} onChange={e => setBody(e.target.value)} rows={10} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">내용</label>
+                        <textarea value={body} onChange={e => setBody(e.target.value)} rows={10} className="mt-1 block w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
                     </div>
                 </div>
                 <div className="mt-6 flex justify-end space-x-2">
-                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">취소</button>
+                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">취소</button>
                     <button onClick={handleSubmit} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"><Send size={16} className="mr-2"/>보내기</button>
                 </div>
             </div>
@@ -796,14 +819,14 @@ function ApprovalModal({ onClose, onSave }: { onClose: () => void, onSave: (appr
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg">
-                <h2 className="text-xl font-bold mb-4">새 결재 상신</h2>
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-lg">
+                <h2 className="text-xl font-bold mb-4 dark:text-white">새 결재 상신</h2>
                 <div className="space-y-4">
-                    <input type="text" placeholder="제목" value={title} onChange={e => setTitle(e.target.value)} className="w-full border rounded p-2"/>
-                    <textarea placeholder="내용" value={content} onChange={e => setContent(e.target.value)} rows={5} className="w-full border rounded p-2"></textarea>
+                    <input type="text" placeholder="제목" value={title} onChange={e => setTitle(e.target.value)} className="w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"/>
+                    <textarea placeholder="내용" value={content} onChange={e => setContent(e.target.value)} rows={5} className="w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></textarea>
                 </div>
                 <div className="mt-4 flex justify-end space-x-2">
-                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">취소</button>
+                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 dark:text-gray-200 rounded">취소</button>
                     <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded">상신</button>
                 </div>
             </div>
@@ -817,29 +840,29 @@ function ApprovalView({approvals, onSave, currentUser}: {approvals: Approval[], 
         <div className="p-8">
             {isModalOpen && <ApprovalModal onClose={() => setIsModalOpen(false)} onSave={onSave} />}
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold">전자결재</h1>
+                <h1 className="text-2xl font-bold dark:text-white">전자결재</h1>
                 <button onClick={() => setIsModalOpen(true)} className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
                     <PlusCircle size={20} className="mr-2" /> 새 결재 상신
                 </button>
             </div>
-            <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
                 <table className="min-w-full">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-gray-50 dark:bg-slate-700">
                         <tr>
-                            <th className="p-4 text-left text-sm font-semibold text-gray-600">문서 제목</th>
-                            <th className="p-4 text-left text-sm font-semibold text-gray-600">기안자</th>
-                            <th className="p-4 text-left text-sm font-semibold text-gray-600">상신일</th>
-                            <th className="p-4 text-left text-sm font-semibold text-gray-600">상태</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">문서 제목</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">기안자</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">상신일</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">상태</th>
                         </tr>
                     </thead>
                     <tbody>
                         {approvals.map(item => (
-                            <tr key={item.id} className="border-b">
-                                <td className="p-4 text-gray-800">{item.title}</td>
-                                <td className="p-4 text-gray-600">{item.requester}</td>
-                                <td className="p-4 text-gray-600">{item.date}</td>
+                            <tr key={item.id} className="border-b dark:border-gray-700">
+                                <td className="p-4 text-gray-800 dark:text-gray-200">{item.title}</td>
+                                <td className="p-4 text-gray-600 dark:text-gray-300">{item.requester}</td>
+                                <td className="p-4 text-gray-600 dark:text-gray-300">{item.date}</td>
                                 <td className="p-4">
-                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${item.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : item.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${item.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/80 dark:text-yellow-300' : item.status === 'approved' ? 'bg-green-100 text-green-800 dark:bg-green-900/80 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/80 dark:text-red-300'}`}>
                                         {item.status === 'pending' ? '대기중' : item.status === 'approved' ? '승인' : '반려'}
                                     </span>
                                 </td>
@@ -865,14 +888,14 @@ function BoardPostModal({ post, onClose, onSave }: { post: Partial<Post> | null;
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl">
-                <h2 className="text-xl font-bold mb-4">{currentPost.id ? '게시물 수정' : '새 게시물 작성'}</h2>
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-2xl">
+                <h2 className="text-xl font-bold mb-4 dark:text-white">{currentPost.id ? '게시물 수정' : '새 게시물 작성'}</h2>
                 <div className="space-y-4">
-                    <input type="text" placeholder="제목" value={currentPost.title} onChange={e => setCurrentPost({ ...currentPost, title: e.target.value })} className="w-full border rounded p-2" />
-                    <textarea placeholder="내용" value={currentPost.content} onChange={e => setCurrentPost({ ...currentPost, content: e.target.value })} rows={10} className="w-full border rounded p-2"></textarea>
+                    <input type="text" placeholder="제목" value={currentPost.title} onChange={e => setCurrentPost({ ...currentPost, title: e.target.value })} className="w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                    <textarea placeholder="내용" value={currentPost.content} onChange={e => setCurrentPost({ ...currentPost, content: e.target.value })} rows={10} className="w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></textarea>
                 </div>
                 <div className="mt-4 flex justify-end space-x-2">
-                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">취소</button>
+                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 dark:text-gray-200 rounded">취소</button>
                     <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded">저장</button>
                 </div>
             </div>
@@ -904,21 +927,21 @@ function BoardView({ posts, onSave, onDelete, currentUser }: { posts: Post[]; on
         return (
             <div className="p-8">
                 {isModalOpen && <BoardPostModal post={editingPost} onClose={() => setIsModalOpen(false)} onSave={handleSave} />}
-                <button onClick={() => setSelectedPost(null)} className="flex items-center text-blue-600 mb-4"><ChevronLeft size={20} /> 목록으로</button>
-                <div className="bg-white p-6 rounded-lg shadow">
-                    <div className="border-b pb-4 mb-4">
-                        <h1 className="text-3xl font-bold">{selectedPost.title}</h1>
-                        <div className="text-sm text-gray-500 mt-2 flex justify-between">
+                <button onClick={() => setSelectedPost(null)} className="flex items-center text-blue-600 dark:text-blue-400 mb-4"><ChevronLeft size={20} /> 목록으로</button>
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow">
+                    <div className="border-b dark:border-gray-700 pb-4 mb-4">
+                        <h1 className="text-3xl font-bold dark:text-white">{selectedPost.title}</h1>
+                        <div className="text-sm text-gray-500 dark:text-gray-400 mt-2 flex justify-between">
                             <span>작성자: {selectedPost.author} | 작성일: {selectedPost.date} | 조회수: {selectedPost.views}</span>
                             {selectedPost.author === currentUser.name && (
                                 <div className="space-x-2">
-                                    <button onClick={() => handleEdit(selectedPost)} className="text-blue-600 hover:underline">수정</button>
-                                    <button onClick={() => { onDelete(selectedPost.id); setSelectedPost(null); }} className="text-red-600 hover:underline">삭제</button>
+                                    <button onClick={() => handleEdit(selectedPost)} className="text-blue-600 dark:text-blue-400 hover:underline">수정</button>
+                                    <button onClick={() => { onDelete(selectedPost.id); setSelectedPost(null); }} className="text-red-600 dark:text-red-400 hover:underline">삭제</button>
                                 </div>
                             )}
                         </div>
                     </div>
-                    <p className="text-gray-700 whitespace-pre-wrap">{selectedPost.content}</p>
+                    <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{selectedPost.content}</p>
                 </div>
             </div>
         );
@@ -928,28 +951,28 @@ function BoardView({ posts, onSave, onDelete, currentUser }: { posts: Post[]; on
         <div className="p-8">
             {isModalOpen && <BoardPostModal post={editingPost} onClose={() => setIsModalOpen(false)} onSave={handleSave} />}
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold">게시판</h1>
+                <h1 className="text-2xl font-bold dark:text-white">게시판</h1>
                 <button onClick={handleCreate} className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
                     <PlusCircle size={20} className="mr-2" /> 글쓰기
                 </button>
             </div>
-            <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
                 <table className="min-w-full">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-gray-50 dark:bg-slate-700">
                         <tr>
-                            <th className="p-4 text-left text-sm font-semibold text-gray-600">제목</th>
-                            <th className="p-4 text-left text-sm font-semibold text-gray-600">작성자</th>
-                            <th className="p-4 text-left text-sm font-semibold text-gray-600">작성일</th>
-                            <th className="p-4 text-left text-sm font-semibold text-gray-600">조회수</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">제목</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">작성자</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">작성일</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">조회수</th>
                         </tr>
                     </thead>
                     <tbody>
                         {posts.map(post => (
-                            <tr key={post.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedPost(post)}>
-                                <td className="p-4 text-gray-800">{post.title}</td>
-                                <td className="p-4 text-gray-600">{post.author}</td>
-                                <td className="p-4 text-gray-600">{post.date}</td>
-                                <td className="p-4 text-gray-600">{post.views}</td>
+                            <tr key={post.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer" onClick={() => setSelectedPost(post)}>
+                                <td className="p-4 text-gray-800 dark:text-gray-200">{post.title}</td>
+                                <td className="p-4 text-gray-600 dark:text-gray-300">{post.author}</td>
+                                <td className="p-4 text-gray-600 dark:text-gray-300">{post.date}</td>
+                                <td className="p-4 text-gray-600 dark:text-gray-300">{post.views}</td>
                             </tr>
                         ))}
                     </tbody>
@@ -995,17 +1018,17 @@ function ChatView({ messages, setMessages, currentUser, onUpdate, onDelete }: { 
 
     return (
         <div className="p-4 h-full flex flex-col">
-            <h1 className="text-2xl font-bold mb-4 border-b pb-4">사내 채팅</h1>
+            <h1 className="text-2xl font-bold mb-4 border-b dark:border-gray-700 pb-4 dark:text-white">사내 채팅</h1>
             <div className="flex-grow overflow-y-auto space-y-4 pr-4">
                 {messages.map(msg => (
                     <div key={msg.id} className={`flex items-end gap-3 ${msg.isCurrentUser ? 'flex-row-reverse' : ''}`}>
                         {!msg.isCurrentUser && (
                             <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center font-bold shrink-0">{msg.user.avatar}</div>
                         )}
-                        <div className={`group relative max-w-xs md:max-w-md p-3 rounded-lg ${msg.isCurrentUser ? 'bg-blue-500 text-white rounded-br-none' : 'bg-white border rounded-bl-none'}`}>
+                        <div className={`group relative max-w-xs md:max-w-md p-3 rounded-lg ${msg.isCurrentUser ? 'bg-blue-500 text-white rounded-br-none' : 'bg-white dark:bg-slate-700 dark:text-gray-200 border dark:border-slate-600 rounded-bl-none'}`}>
                             {editingMessage?.id === msg.id ? (
                                 <div>
-                                    <input value={editingMessage.text} onChange={e => setEditingMessage({...editingMessage, text: e.target.value})} className="text-sm p-1 rounded bg-white text-black"/>
+                                    <input value={editingMessage.text} onChange={e => setEditingMessage({...editingMessage, text: e.target.value})} className="text-sm p-1 rounded bg-white dark:bg-gray-600 dark:text-white text-black"/>
                                     <div className="text-right mt-1 space-x-2">
                                         <button onClick={handleEditCancel} className="text-xs text-gray-300">취소</button>
                                         <button onClick={handleEditSave} className="text-xs text-blue-200">저장</button>
@@ -1014,13 +1037,13 @@ function ChatView({ messages, setMessages, currentUser, onUpdate, onDelete }: { 
                             ) : (
                                 <>
                                     <p className="text-sm">{msg.text}</p>
-                                    <span className={`text-xs mt-1 block ${msg.isCurrentUser ? 'text-blue-200' : 'text-gray-400'} text-right`}>{msg.timestamp}</span>
+                                    <span className={`text-xs mt-1 block ${msg.isCurrentUser ? 'text-blue-200' : 'text-gray-400 dark:text-gray-500'} text-right`}>{msg.timestamp}</span>
                                 </>
                             )}
                              {msg.isCurrentUser && editingMessage?.id !== msg.id && (
                                 <div className="absolute top-0 right-0 -translate-y-2 translate-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onClick={() => setEditingMessage(msg)} className="p-1 bg-white rounded-full shadow"><Edit size={12} className="text-gray-600"/></button>
-                                    <button onClick={() => onDelete(msg.id)} className="p-1 bg-white rounded-full shadow ml-1"><Trash2 size={12} className="text-red-600"/></button>
+                                    <button onClick={() => setEditingMessage(msg)} className="p-1 bg-white dark:bg-slate-600 rounded-full shadow"><Edit size={12} className="text-gray-600 dark:text-gray-200"/></button>
+                                    <button onClick={() => onDelete(msg.id)} className="p-1 bg-white dark:bg-slate-600 rounded-full shadow ml-1"><Trash2 size={12} className="text-red-600"/></button>
                                 </div>
                             )}
                         </div>
@@ -1028,13 +1051,13 @@ function ChatView({ messages, setMessages, currentUser, onUpdate, onDelete }: { 
                 ))}
                 <div ref={chatEndRef} />
             </div>
-            <form onSubmit={handleSendMessage} className="mt-4 flex border-t pt-4">
+            <form onSubmit={handleSendMessage} className="mt-4 flex border-t dark:border-gray-700 pt-4">
                 <input 
                     type="text" 
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="메시지를 입력하세요..." 
-                    className="flex-grow border rounded-l-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-grow border rounded-l-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
                 />
                 <button type="submit" className="bg-blue-500 text-white px-4 rounded-r-md hover:bg-blue-600">
                     <Send size={20} />
@@ -1069,31 +1092,31 @@ function ScheduleModal({ event, onClose, onSave, onDelete }: { event: Partial<Sc
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-md">
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold">{currentEvent.id ? '일정 수정' : '일정 추가'}</h2>
-                    <button onClick={onClose}><X size={24} /></button>
+                    <h2 className="text-xl font-bold dark:text-white">{currentEvent.id ? '일정 수정' : '일정 추가'}</h2>
+                    <button onClick={onClose} className="dark:text-gray-300"><X size={24} /></button>
                 </div>
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">제목</label>
-                        <input type="text" value={currentEvent.title || ''} onChange={e => setCurrentEvent({...currentEvent, title: e.target.value})} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">제목</label>
+                        <input type="text" value={currentEvent.title || ''} onChange={e => setCurrentEvent({...currentEvent, title: e.target.value})} className="mt-1 block w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">종류</label>
-                        <select value={currentEvent.type || '업무'} onChange={e => setCurrentEvent({...currentEvent, type: e.target.value as ScheduleEventType})} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">종류</label>
+                        <select value={currentEvent.type || '업무'} onChange={e => setCurrentEvent({...currentEvent, type: e.target.value as ScheduleEventType})} className="mt-1 block w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                             <option>업무</option>
                             <option>부서</option>
                             <option>회사</option>
                         </select>
                     </div>
                      <div>
-                        <label className="block text-sm font-medium text-gray-700">시작</label>
-                        <input type="datetime-local" value={currentEvent.start ? toLocalISOString(currentEvent.start) : ''} onChange={e => setCurrentEvent({...currentEvent, start: new Date(e.target.value)})} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">시작</label>
+                        <input type="datetime-local" value={currentEvent.start ? toLocalISOString(currentEvent.start) : ''} onChange={e => setCurrentEvent({...currentEvent, start: new Date(e.target.value)})} className="mt-1 block w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
                     </div>
                      <div>
-                        <label className="block text-sm font-medium text-gray-700">종료</label>
-                        <input type="datetime-local" value={currentEvent.end ? toLocalISOString(currentEvent.end) : ''} onChange={e => setCurrentEvent({...currentEvent, end: new Date(e.target.value)})} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">종료</label>
+                        <input type="datetime-local" value={currentEvent.end ? toLocalISOString(currentEvent.end) : ''} onChange={e => setCurrentEvent({...currentEvent, end: new Date(e.target.value)})} className="mt-1 block w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
                     </div>
                 </div>
                 <div className="mt-6 flex justify-between">
@@ -1101,7 +1124,7 @@ function ScheduleModal({ event, onClose, onSave, onDelete }: { event: Partial<Sc
                         {currentEvent.id && <button onClick={handleDelete} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">삭제</button>}
                     </div>
                     <div className="space-x-2">
-                         <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">취소</button>
+                         <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">취소</button>
                          <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">저장</button>
                     </div>
                 </div>
@@ -1183,33 +1206,33 @@ function ScheduleView({ events, setEvents, isMobile, currentUser }: { events: Sc
             { label: '회사 공휴일', color: 'red' },
         ];
         return (
-            <div className="p-4 bg-white border-b">
+            <div className="p-4 bg-white dark:bg-slate-800 border-b dark:border-gray-700">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center space-x-2">
-                        <button onClick={handlePrev} className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-100">이전</button>
-                        <button onClick={handleNext} className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-100">다음</button>
-                        <button onClick={handleToday} className="px-3 py-1.5 border rounded-md text-sm hover:bg-gray-100 bg-red-50 text-red-700">오늘</button>
+                        <button onClick={handlePrev} className="px-3 py-1.5 border dark:border-gray-600 rounded-md text-sm hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-gray-300">이전</button>
+                        <button onClick={handleNext} className="px-3 py-1.5 border dark:border-gray-600 rounded-md text-sm hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-gray-300">다음</button>
+                        <button onClick={handleToday} className="px-3 py-1.5 border dark:border-gray-600 rounded-md text-sm hover:bg-gray-100 dark:hover:bg-slate-700 bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300">오늘</button>
                     </div>
-                    <h2 className="text-xl font-bold text-center">{title}</h2>
+                    <h2 className="text-xl font-bold text-center dark:text-white">{title}</h2>
                     <div className="flex items-center space-x-2">
-                         <div className="flex items-center rounded-md border">
-                            <button onClick={() => setViewMode('month')} className={`px-3 py-1.5 text-sm ${viewMode === 'month' ? 'bg-red-600 text-white' : 'hover:bg-gray-100'}`}>월간</button>
-                            <button onClick={() => setViewMode('week')} className={`px-3 py-1.5 text-sm border-l ${viewMode === 'week' ? 'bg-red-600 text-white' : 'hover:bg-gray-100'}`}>주간</button>
-                            <button onClick={() => setViewMode('day')} className={`px-3 py-1.5 text-sm border-l ${viewMode === 'day' ? 'bg-red-600 text-white' : 'hover:bg-gray-100'}`}>일간</button>
+                         <div className="flex items-center rounded-md border dark:border-gray-600">
+                            <button onClick={() => setViewMode('month')} className={`px-3 py-1.5 text-sm ${viewMode === 'month' ? 'bg-red-600 text-white' : 'hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-gray-300'}`}>월간</button>
+                            <button onClick={() => setViewMode('week')} className={`px-3 py-1.5 text-sm border-l dark:border-gray-600 ${viewMode === 'week' ? 'bg-red-600 text-white' : 'hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-gray-300'}`}>주간</button>
+                            <button onClick={() => setViewMode('day')} className={`px-3 py-1.5 text-sm border-l dark:border-gray-600 ${viewMode === 'day' ? 'bg-red-600 text-white' : 'hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-gray-300'}`}>일간</button>
                         </div>
                     </div>
                 </div>
-                 <div className="pt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+                 <div className="pt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs dark:text-gray-300">
                     {legend.map(item => (
                         <div key={item.label} className="flex items-center">
                             <span className={`w-3 h-3 rounded-full mr-1.5 bg-${item.color}-500`}></span>
                             <span>{item.label}</span>
                         </div>
                     ))}
-                     <div className="flex-grow flex items-center space-x-4 text-sm justify-end">
+                     <div className="flex-grow flex items-center space-x-4 text-sm justify-end dark:text-gray-300">
                         {Object.keys(visibleCalendars).map((cal) => (
                            <label key={cal} className="flex items-center space-x-2 cursor-pointer">
-                             <input type="checkbox" checked={visibleCalendars[cal]} onChange={() => setVisibleCalendars(prev => ({...prev, [cal]: !prev[cal]}))} className="form-checkbox h-4 w-4 rounded text-blue-600"/>
+                             <input type="checkbox" checked={visibleCalendars[cal as keyof typeof visibleCalendars]} onChange={() => setVisibleCalendars(prev => ({...prev, [cal]: !prev[cal as keyof typeof visibleCalendars]}))} className="form-checkbox h-4 w-4 rounded text-blue-600 bg-gray-100 border-gray-300 dark:bg-gray-600 dark:border-gray-500"/>
                              <span>{cal}</span>
                            </label>
                         ))}
@@ -1228,7 +1251,7 @@ function ScheduleView({ events, setEvents, isMobile, currentUser }: { events: Sc
         }
     };
     
-    return <div className="h-full flex flex-col bg-white">
+    return <div className="h-full flex flex-col bg-white dark:bg-slate-800">
         <CalendarHeader />
         {renderView()}
         {modalState.isOpen && <ScheduleModal event={modalState.event!} onClose={handleCloseModal} onSave={handleSaveEvent} onDelete={handleDeleteEvent} />}
@@ -1248,9 +1271,9 @@ const MonthView = ({ date, events, onDayClick, onEventClick }: { date: Date, eve
     const isSameDay = (d1: Date, d2: Date) => d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
     
     return (
-        <div className="flex-grow grid grid-cols-7 border-t">
+        <div className="flex-grow grid grid-cols-7 border-t dark:border-gray-700">
             {['일', '월', '화', '수', '목', '금', '토'].map(day => (
-                <div key={day} className="text-center font-bold p-2 border-b text-sm">{day}</div>
+                <div key={day} className="text-center font-bold p-2 border-b dark:border-gray-700 text-sm dark:text-gray-300">{day}</div>
             ))}
             {days.map((day, index) => {
                  const dayDate = day ? new Date(year, month, day) : null;
@@ -1259,8 +1282,8 @@ const MonthView = ({ date, events, onDayClick, onEventClick }: { date: Date, eve
                  const isToday = dayDate ? isSameDay(dayDate, new Date()) : false;
 
                 return (
-                <div key={index} className={`border-r border-b h-24 md:h-36 p-1 text-xs md:text-sm overflow-y-auto relative cursor-pointer
-                    ${isSunday ? 'bg-red-50' : ''} ${isSaturday ? 'bg-blue-50' : ''}`}
+                <div key={index} className={`border-r border-b dark:border-gray-700 h-24 md:h-36 p-1 text-xs md:text-sm overflow-y-auto relative cursor-pointer dark:text-gray-300
+                    ${isSunday ? 'bg-red-50 dark:bg-red-900/20' : ''} ${isSaturday ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
                     onClick={() => dayDate && onDayClick(dayDate)}
                 >
                     {day && <span className={`p-1 rounded-full ${isToday ? 'bg-red-500 text-white' : ''}`}>{day}</span>}
@@ -1285,21 +1308,21 @@ const WeekView = ({ date, events, onSlotClick, onEventClick }: { date: Date, eve
     
     return (
         <div className="flex-grow flex flex-col overflow-auto">
-            <div className="flex sticky top-0 bg-white z-10 border-b">
-                <div className="w-16 border-r"></div>
+            <div className="flex sticky top-0 bg-white dark:bg-slate-800 z-10 border-b dark:border-gray-700">
+                <div className="w-16 border-r dark:border-gray-700"></div>
                 {days.map(day => {
                     const isToday = isSameDay(day, new Date());
-                    return <div key={day.toISOString()} className={`flex-1 text-center p-2 font-bold text-sm ${isToday ? 'text-red-500' : ''}`}>{`${day.getDate()}일 (${['일', '월', '화', '수', '목', '금', '토'][day.getDay()]})`}</div>
+                    return <div key={day.toISOString()} className={`flex-1 text-center p-2 font-bold text-sm ${isToday ? 'text-red-500' : 'dark:text-gray-300'}`}>{`${day.getDate()}일 (${['일', '월', '화', '수', '목', '금', '토'][day.getDay()]})`}</div>
                 })}
             </div>
             <div className="flex flex-grow">
                 <div className="w-16">
-                    {hours.map(hour => <div key={hour} className="h-20 text-right pr-2 text-xs text-gray-500 border-r pt-1">{`${hour}:00`}</div>)}
+                    {hours.map(hour => <div key={hour} className="h-20 text-right pr-2 text-xs text-gray-500 dark:text-gray-400 border-r dark:border-gray-700 pt-1">{`${hour}:00`}</div>)}
                 </div>
                 <div className="flex-1 grid grid-cols-7">
                     {days.map(day => (
-                        <div key={day.toISOString()} className="border-r relative">
-                            {hours.map(hour => <div key={hour} className="h-20 border-b cursor-pointer" onClick={() => onSlotClick(new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour))}></div>)}
+                        <div key={day.toISOString()} className="border-r dark:border-gray-700 relative">
+                            {hours.map(hour => <div key={hour} className="h-20 border-b dark:border-gray-700 cursor-pointer" onClick={() => onSlotClick(new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour))}></div>)}
                             {events.filter(e => isSameDay(e.start, day)).map(e => {
                                 const top = (e.start.getHours() - 8 + e.start.getMinutes() / 60) * 80; // 80px per hour
                                 const height = Math.max(20, (e.end.getTime() - e.start.getTime()) / (1000 * 60 * 60) * 80);
@@ -1325,16 +1348,16 @@ const DayView = ({ date, events, onSlotClick, onEventClick }: { date: Date, even
     
     return (
         <div className="flex-grow flex flex-col overflow-auto">
-            <div className="flex sticky top-0 bg-white z-10 border-b">
-                <div className="w-16 border-r"></div>
-                <div className="flex-1 text-center p-2 font-bold text-sm">{`${day.getDate()}일 (${['일', '월', '화', '수', '목', '금', '토'][day.getDay()]})`}</div>
+            <div className="flex sticky top-0 bg-white dark:bg-slate-800 z-10 border-b dark:border-gray-700">
+                <div className="w-16 border-r dark:border-gray-700"></div>
+                <div className="flex-1 text-center p-2 font-bold text-sm dark:text-gray-300">{`${day.getDate()}일 (${['일', '월', '화', '수', '목', '금', '토'][day.getDay()]})`}</div>
             </div>
             <div className="flex flex-grow">
                 <div className="w-16">
-                    {hours.map(hour => <div key={hour} className="h-20 text-right pr-2 text-xs text-gray-500 border-r pt-1">{`${hour}:00`}</div>)}
+                    {hours.map(hour => <div key={hour} className="h-20 text-right pr-2 text-xs text-gray-500 dark:text-gray-400 border-r dark:border-gray-700 pt-1">{`${hour}:00`}</div>)}
                 </div>
-                <div className="flex-1 relative border-r">
-                     {hours.map(hour => <div key={hour} className="h-20 border-b cursor-pointer" onClick={() => onSlotClick(new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour))}></div>)}
+                <div className="flex-1 relative border-r dark:border-gray-700">
+                     {hours.map(hour => <div key={hour} className="h-20 border-b dark:border-gray-700 cursor-pointer" onClick={() => onSlotClick(new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour))}></div>)}
                      {events.filter(e => isSameDay(e.start, day)).map(e => {
                         const top = (e.start.getHours() - 8 + e.start.getMinutes() / 60) * 80;
                         const height = Math.max(20, (e.end.getTime() - e.start.getTime()) / (1000 * 60 * 60) * 80);
@@ -1367,17 +1390,17 @@ function UserModal({ user, onClose, onSave }: { user: Partial<UserProfile> | nul
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg">
-                <h2 className="text-xl font-bold mb-4">{currentUser.id ? '사원 정보 수정' : '신규 사원 등록'}</h2>
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-lg">
+                <h2 className="text-xl font-bold mb-4 dark:text-white">{currentUser.id ? '사원 정보 수정' : '신규 사원 등록'}</h2>
                 <div className="grid grid-cols-2 gap-4">
-                    <input name="name" value={currentUser.name} onChange={handleChange} placeholder="이름" className="border p-2 rounded col-span-2"/>
-                    <input name="team" value={currentUser.team} onChange={handleChange} placeholder="부서" className="border p-2 rounded"/>
-                    <input name="position" value={currentUser.position} onChange={handleChange} placeholder="직책" className="border p-2 rounded"/>
-                    <input name="email" value={currentUser.email} onChange={handleChange} placeholder="이메일" className="border p-2 rounded col-span-2"/>
-                    <input name="phone" value={currentUser.phone} onChange={handleChange} placeholder="연락처" className="border p-2 rounded col-span-2"/>
+                    <input name="name" value={currentUser.name} onChange={handleChange} placeholder="이름" className="border p-2 rounded col-span-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"/>
+                    <input name="team" value={currentUser.team} onChange={handleChange} placeholder="부서" className="border p-2 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"/>
+                    <input name="position" value={currentUser.position} onChange={handleChange} placeholder="직책" className="border p-2 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"/>
+                    <input name="email" value={currentUser.email} onChange={handleChange} placeholder="이메일" className="border p-2 rounded col-span-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"/>
+                    <input name="phone" value={currentUser.phone} onChange={handleChange} placeholder="연락처" className="border p-2 rounded col-span-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"/>
                 </div>
                 <div className="mt-4 flex justify-end space-x-2">
-                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">취소</button>
+                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 dark:text-gray-200 rounded">취소</button>
                     <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded">저장</button>
                 </div>
             </div>
@@ -1410,40 +1433,40 @@ function EmployeeView({users, onSave, onDelete}: {users: UserProfile[], onSave: 
         <div className="p-8">
             {isModalOpen && <UserModal user={editingUser} onClose={() => setIsModalOpen(false)} onSave={onSave} />}
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold">사원관리</h1>
+                <h1 className="text-2xl font-bold dark:text-white">사원관리</h1>
                 <div className="flex items-center space-x-4">
-                    <div className="flex items-center border rounded-md">
-                        <input type="text" placeholder="사원 검색" className="px-2 py-1.5 text-sm outline-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-                        <button className="p-1.5 border-l hover:bg-gray-100"><Search size={16} /></button>
+                    <div className="flex items-center border dark:border-gray-600 rounded-md">
+                        <input type="text" placeholder="사원 검색" className="px-2 py-1.5 text-sm outline-none bg-transparent dark:text-white" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                        <button className="p-1.5 border-l dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-gray-300"><Search size={16} /></button>
                     </div>
                     <button onClick={handleCreate} className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
                         <PlusCircle size={20} className="mr-2" /> 신규 사원 등록
                     </button>
                 </div>
             </div>
-            <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow overflow-hidden">
                 <table className="min-w-full">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-gray-50 dark:bg-slate-700">
                         <tr>
-                            <th className="p-4 text-left text-sm font-semibold text-gray-600">이름</th>
-                            <th className="p-4 text-left text-sm font-semibold text-gray-600">부서</th>
-                            <th className="p-4 text-left text-sm font-semibold text-gray-600">직책</th>
-                            <th className="p-4 text-left text-sm font-semibold text-gray-600">이메일</th>
-                            <th className="p-4 text-left text-sm font-semibold text-gray-600">연락처</th>
-                            <th className="p-4 text-left text-sm font-semibold text-gray-600">관리</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">이름</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">부서</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">직책</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">이메일</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">연락처</th>
+                            <th className="p-4 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">관리</th>
                         </tr>
                     </thead>
                     <tbody>
                         {filteredUsers.map(user => (
-                            <tr key={user.id} className="border-b">
-                                <td className="p-4 text-gray-800 flex items-center">
+                            <tr key={user.id} className="border-b dark:border-gray-700">
+                                <td className="p-4 text-gray-800 dark:text-gray-200 flex items-center">
                                      <div className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center font-bold mr-3">{user.avatar}</div>
                                      {user.name}
                                 </td>
-                                <td className="p-4 text-gray-600">{user.team}</td>
-                                <td className="p-4 text-gray-600">{user.position}</td>
-                                <td className="p-4 text-gray-600">{user.email}</td>
-                                <td className="p-4 text-gray-600">{user.phone}</td>
+                                <td className="p-4 text-gray-600 dark:text-gray-300">{user.team}</td>
+                                <td className="p-4 text-gray-600 dark:text-gray-300">{user.position}</td>
+                                <td className="p-4 text-gray-600 dark:text-gray-300">{user.email}</td>
+                                <td className="p-4 text-gray-600 dark:text-gray-300">{user.phone}</td>
                                 <td className="p-4 text-gray-600 space-x-2">
                                     <button onClick={() => handleEdit(user)} className="text-blue-500 hover:underline">수정</button>
                                     <button onClick={() => onDelete(user.id)} className="text-red-500 hover:underline">삭제</button>
@@ -1473,19 +1496,19 @@ function DocumentActionModal({ doc, action, onClose, onSave, parentId }: { doc: 
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-                <h2 className="text-xl font-bold mb-4">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-md">
+                <h2 className="text-xl font-bold mb-4 dark:text-white">
                     {action === 'create' ? '새로 만들기' : '이름 바꾸기'}
                 </h2>
                 {action === 'create' && (
-                    <select value={type} onChange={e => setType(e.target.value as any)} className="w-full border p-2 rounded mb-2">
+                    <select value={type} onChange={e => setType(e.target.value as any)} className="w-full border p-2 rounded mb-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                         <option value="folder">폴더</option>
                         <option value="txt">텍스트 파일</option>
                     </select>
                 )}
-                <input value={name} onChange={e => setName(e.target.value)} placeholder="이름" className="w-full border p-2 rounded"/>
+                <input value={name} onChange={e => setName(e.target.value)} placeholder="이름" className="w-full border p-2 rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"/>
                 <div className="mt-4 flex justify-end space-x-2">
-                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">취소</button>
+                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 dark:text-gray-200 rounded">취소</button>
                     <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded">저장</button>
                 </div>
             </div>
@@ -1529,12 +1552,12 @@ function DocumentView({documents, onSave, onDelete}: {documents: Document[], onS
     return (
         <div className="flex h-full">
             {modalState.isOpen && <DocumentActionModal action={modalState.action} doc={modalState.doc} onClose={() => setModalState({isOpen: false, action: 'create', doc: null})} onSave={onSave} parentId={currentFolderId} />}
-            <div className="w-72 border-r bg-white p-4 flex flex-col">
-                <h2 className="text-xl font-bold mb-4">문서함</h2>
+            <div className="w-72 border-r bg-white dark:bg-slate-800 dark:border-gray-700 p-4 flex flex-col">
+                <h2 className="text-xl font-bold mb-4 dark:text-white">문서함</h2>
                 <ul className="space-y-1">
                     {folders.map(folder => (
                         <li key={folder.id}>
-                            <button onClick={() => setCurrentFolderId(folder.id)} className={`w-full text-left p-2 rounded-md text-sm flex items-center ${currentFolderId === folder.id ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}>
+                            <button onClick={() => setCurrentFolderId(folder.id)} className={`w-full text-left p-2 rounded-md text-sm flex items-center ${currentFolderId === folder.id ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 font-semibold' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700'}`}>
                                 <Folder size={16} className="mr-2 text-yellow-600" /> {folder.name}
                             </button>
                         </li>
@@ -1542,9 +1565,9 @@ function DocumentView({documents, onSave, onDelete}: {documents: Document[], onS
                 </ul>
             </div>
             <div className="flex-1 flex flex-col">
-                <div className="p-4 border-b bg-white">
+                <div className="p-4 border-b bg-white dark:bg-slate-800 dark:border-gray-700">
                     <div className="flex justify-between items-center">
-                         <div className="text-sm text-gray-500">
+                         <div className="text-sm text-gray-500 dark:text-gray-400">
                              <button onClick={() => setCurrentFolderId(null)} className="hover:underline">문서관리</button>
                              {breadcrumbs.map(b => (
                                 <span key={b.id}>
@@ -1557,16 +1580,16 @@ function DocumentView({documents, onSave, onDelete}: {documents: Document[], onS
                             <button onClick={() => setModalState({isOpen: true, action: 'create', doc: null})} className="flex items-center bg-blue-500 text-white px-3 py-1.5 rounded-md text-sm hover:bg-blue-600">
                                 <PlusCircle size={16} className="mr-1"/> 새로 만들기
                             </button>
-                            <div className="flex items-center border rounded-md">
-                                <input type="text" placeholder="문서 검색" className="px-2 py-1.5 text-sm outline-none" />
-                                <button className="p-1.5 border-l hover:bg-gray-100"><Search size={16} /></button>
+                            <div className="flex items-center border dark:border-gray-600 rounded-md">
+                                <input type="text" placeholder="문서 검색" className="px-2 py-1.5 text-sm outline-none bg-transparent dark:text-white" />
+                                <button className="p-1.5 border-l dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-gray-300"><Search size={16} /></button>
                             </div>
                          </div>
                     </div>
                 </div>
                  <div className="flex-1 overflow-x-auto">
-                    <table className="min-w-full text-sm text-left bg-white">
-                        <thead className="border-b bg-gray-50 text-gray-500">
+                    <table className="min-w-full text-sm text-left bg-white dark:bg-slate-800">
+                        <thead className="border-b dark:border-gray-700 bg-gray-50 dark:bg-slate-700 text-gray-500 dark:text-gray-400">
                             <tr>
                                 <th className="p-3 w-12"></th>
                                 <th className="p-3">이름</th>
@@ -1578,12 +1601,12 @@ function DocumentView({documents, onSave, onDelete}: {documents: Document[], onS
                         </thead>
                         <tbody>
                             {currentItems.map(item => (
-                                <tr key={item.id} className="border-b hover:bg-gray-50 cursor-pointer">
+                                <tr key={item.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer">
                                     <td className="p-3" onDoubleClick={() => item.type === 'folder' && setCurrentFolderId(item.id)}>{getFileIcon(item.type)}</td>
-                                    <td className="p-3 font-medium text-gray-800" onDoubleClick={() => item.type === 'folder' && setCurrentFolderId(item.id)}>{item.name}</td>
-                                    <td className="p-3 text-gray-600" onDoubleClick={() => item.type === 'folder' && setCurrentFolderId(item.id)}>{item.owner}</td>
-                                    <td className="p-3 text-gray-600" onDoubleClick={() => item.type === 'folder' && setCurrentFolderId(item.id)}>{item.modifiedDate}</td>
-                                    <td className="p-3 text-gray-600" onDoubleClick={() => item.type === 'folder' && setCurrentFolderId(item.id)}>{item.size || '--'}</td>
+                                    <td className="p-3 font-medium text-gray-800 dark:text-gray-200" onDoubleClick={() => item.type === 'folder' && setCurrentFolderId(item.id)}>{item.name}</td>
+                                    <td className="p-3 text-gray-600 dark:text-gray-300" onDoubleClick={() => item.type === 'folder' && setCurrentFolderId(item.id)}>{item.owner}</td>
+                                    <td className="p-3 text-gray-600 dark:text-gray-300" onDoubleClick={() => item.type === 'folder' && setCurrentFolderId(item.id)}>{item.modifiedDate}</td>
+                                    <td className="p-3 text-gray-600 dark:text-gray-300" onDoubleClick={() => item.type === 'folder' && setCurrentFolderId(item.id)}>{item.size || '--'}</td>
                                     <td className="p-3 text-gray-600 space-x-2">
                                         <button onClick={() => setModalState({isOpen: true, action: 'rename', doc: item})} className="text-blue-500 hover:underline">이름변경</button>
                                         <button onClick={() => onDelete(item.id)} className="text-red-500 hover:underline">삭제</button>
